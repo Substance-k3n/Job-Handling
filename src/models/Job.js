@@ -21,7 +21,15 @@ const jobSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
-  }
+  },
+  location:{
+     type:String,
+  },
+  salary: {
+    min: { type: Number, default: 0 },
+    max: { type: Number, default: 0 },
+    currency: { type: String, default: 'Birr' }
+  },
 }, {
   timestamps: true
 });
