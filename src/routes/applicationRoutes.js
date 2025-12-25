@@ -4,10 +4,22 @@ const {
   getMyApplications,
   getAllApplications,
   getJobApplications,
-  getApplicationById,
-  updateApplicationStatus
+  getApplicationById
 } = require('../controllers/applicationController');
-const { applicationValidator, updateStatusValidator } = require('../validators/applicationValidator');
+
+// NEW: Import the logic from your pipelineController
+const {
+  moveStage,
+  getStageHistory
+} = require('../controllers/pipelineController');
+
+// Import Validators matching your screenshot folder
+const { applicationValidator } = require('../validators/applicationValidator');
+const { 
+  validateMoveStage, 
+  validateApplicationId 
+} = require('../validators/pipelineValidator');
+
 const validateRequest = require('../middleware/validateRequest');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -153,12 +165,12 @@ router.get('/job/:jobId', protect, authorize('admin'), getJobApplications);
  *         description: Application status updated
  */
 router.patch(
-  '/:id/status',
+  '/:id/move-stage',
   protect,
   authorize('admin'),
-  updateStatusValidator,
+  validateMoveStage,
   validateRequest,
-  updateApplicationStatus
+  moveStage
 );
 
 // Shared route
@@ -184,6 +196,6 @@ router.patch(
  *             schema:
  *               $ref: '#/components/schemas/Application'
  */
-router.get('/:id', protect, getApplicationById);
+router.get('/:id', protect, validateApplicationId, validateRequest, getApplicationById);
 
 module.exports = router;

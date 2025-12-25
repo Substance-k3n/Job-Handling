@@ -19,16 +19,64 @@ const applicationSchema = new mongoose.Schema({
     type: String,
     required: [true, 'CV is required']
   },
-  status: {
+
+  /* --- NEW ENTERPRISE PIPELINE FIELDS --- */
+  pipeline_stage: {
     type: String,
-    enum: ['pending', 'reviewed', 'accepted', 'rejected'],
-    default: 'pending'
+    enum: ['applied', 'screening', 'interview', 'assessment', 'offer', 'hired', 'rejected'],
+    default: 'applied',
+    index: true // Optimized for Kanban board filteringAuditLog
   },
-  adminNotes: {
-    type: String
-  }
+
+  stage_history: [{
+    stage: {
+      type: String,
+      enum: ['applied', 'screening', 'interview', 'assessment', 'offer', 'hired', 'rejected'],
+      required: true
+    },
+    changed_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    changed_at: {
+      type: Date,
+      default: Date.now
+    },
+    notes: String
+  }],
+
+  current_stage_entered: {
+    type: Date,
+    default: Date.now
+  },
+
+ 
 }, {
   timestamps: true
+});
+/* --- PRE-SAVE HOOKS --- */
+
+// 1. Update timestamp when stage changes (keep existing)
+applicationSchema.pre('save', function(next) {
+  if (this.isModified('pipeline_stage') && !this.isNew) {
+    this.current_stage_entered = new Date();
+  }
+  next();
+});
+
+// 2. Initialize stage history on creation (UPDATED)
+applicationSchema.pre('save', function(next) {
+  if (this.isNew) {
+    this.current_stage_entered = new Date(); // Set initial timestamp
+    this.stage_history.push({
+      stage: 'applied',
+      changed_by: this.applicant, 
+      changed_at: new Date(),
+      notes: 'Application submitted by candidate'
+    });
+  }
+  next();
 });
 
 // Prevent duplicate applications

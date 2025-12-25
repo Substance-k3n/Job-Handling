@@ -6,7 +6,13 @@ const applicationRoutes = require('./routes/applicationRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const swaggerJsDoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
-
+const pipelineRoutes = require('./routes/pipelineRoutes');
+const captureRequestMetadata = require('./middleware/captureRequestMetadata');
+const { protect } = require('./middleware/authMiddleware');
+const { authorize } = require('./middleware/roleMiddleware');
+const { validateMoveStage } = require('./validators/pipelineValidator');
+const validateRequest = require('./middleware/validateRequest');
+const { moveStage } = require('./controllers/pipelineController');
 const app = express();
 
 const swaggerOptions = {
@@ -167,6 +173,10 @@ const swaggerOptions = {
         name: 'Applications',
         description: 'Job application management and tracking'
       }
+      ,{
+        name: 'Pipeline',
+        description: 'Pipeline and application stage management'
+      }
     ]
   },
   apis: ['./src/routes/*.js', './src/models/*.js'] // Path to your route and model files
@@ -201,7 +211,15 @@ if (swaggerEnabled) {
   // Keep a small log so it's clear why docs are not mounted
   // (no console in library code changes; safe to leave optional comment)
 }
-
+app.patch(
+  '/applications/:id/move-stage',
+  protect,
+  authorize('admin'),
+  captureRequestMetadata, // ADD THIS
+  validateMoveStage,
+  validateRequest,
+  moveStage
+);
 
 
 // Middleware
@@ -216,6 +234,8 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/applications', applicationRoutes);
+app.use('/api', pipelineRoutes);
+app.use('/api/audit', require('./routes/auditRoutes'));
 
 app.get('/', (req, res) => {
     res.status(200).json({
@@ -223,6 +243,10 @@ app.get('/', (req, res) => {
         message: 'Fayda Tech API is running smoothly!'
     });
 })
+
+// Ensure captureRequestMetadata is applied consistently
+app.use(captureRequestMetadata);
+
 // Error handling middleware 
 app.use(errorHandler);
 
