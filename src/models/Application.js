@@ -20,12 +20,12 @@ const applicationSchema = new mongoose.Schema({
     required: [true, 'CV is required']
   },
 
-  /* --- NEW ENTERPRISE PIPELINE FIELDS --- */
+  /* --- ENTERPRISE PIPELINE FIELDS --- */
   pipeline_stage: {
     type: String,
     enum: ['applied', 'screening', 'interview', 'assessment', 'offer', 'hired', 'rejected'],
     default: 'applied',
-    index: true // Optimized for Kanban board filteringAuditLog
+    index: true
   },
 
   stage_history: [{
@@ -51,13 +51,22 @@ const applicationSchema = new mongoose.Schema({
     default: Date.now
   },
 
- 
+  /* --- LEGACY STATUS (kept for backward compatibility) --- */
+  status: {
+    type: String,
+    enum: ['pending', 'reviewed', 'accepted', 'rejected'],
+    default: 'pending'
+  },
+  adminNotes: {
+    type: String
+  }
 }, {
   timestamps: true
 });
+
 /* --- PRE-SAVE HOOKS --- */
 
-// 1. Update timestamp when stage changes (keep existing)
+// Update timestamp when stage changes
 applicationSchema.pre('save', function(next) {
   if (this.isModified('pipeline_stage') && !this.isNew) {
     this.current_stage_entered = new Date();
@@ -65,10 +74,10 @@ applicationSchema.pre('save', function(next) {
   next();
 });
 
-// 2. Initialize stage history on creation (UPDATED)
+// Initialize stage history on creation
 applicationSchema.pre('save', function(next) {
   if (this.isNew) {
-    this.current_stage_entered = new Date(); // Set initial timestamp
+    this.current_stage_entered = new Date();
     this.stage_history.push({
       stage: 'applied',
       changed_by: this.applicant, 
@@ -79,7 +88,9 @@ applicationSchema.pre('save', function(next) {
   next();
 });
 
-// Prevent duplicate applications
+// Indexes
 applicationSchema.index({ job: 1, applicant: 1 }, { unique: true });
+applicationSchema.index({ pipeline_stage: 1, createdAt: -1 });
+applicationSchema.index({ applicant: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Application', applicationSchema);

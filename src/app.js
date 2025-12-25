@@ -7,7 +7,8 @@ const errorHandler = require('./middleware/errorHandler');
 const swaggerJsDoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 const pipelineRoutes = require('./routes/pipelineRoutes');
-const captureRequestMetadata = require('./middleware/captureRequestMetadata');
+const auditRoutes = require('./routes/auditRoutes');
+const captureMetadata = require('./middleware/captureMetadata');
 const { protect } = require('./middleware/authMiddleware');
 const { authorize } = require('./middleware/roleMiddleware');
 const { validateMoveStage } = require('./validators/pipelineValidator');
@@ -215,7 +216,7 @@ app.patch(
   '/applications/:id/move-stage',
   protect,
   authorize('admin'),
-  captureRequestMetadata, // ADD THIS
+  captureMetadata, // ADD THIS
   validateMoveStage,
   validateRequest,
   moveStage
@@ -234,18 +235,20 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/applications', applicationRoutes);
-app.use('/api', pipelineRoutes);
-app.use('/api/audit', require('./routes/auditRoutes'));
+app.use('/api/pipeline', pipelineRoutes);  // NEW
+app.use('/api/audit', auditRoutes);  
 
-app.get('/', (req, res) => {
-    res.status(200).json({
-        status: 'success',
-        message: 'Fayda Tech API is running smoothly!'
-    });
-})
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    message: 'Server is running',
+    version: '2.0.0',
+    features: ['ATS Pipeline', 'Audit Logging', 'Kanban Board']
+  });
+});
 
 // Ensure captureRequestMetadata is applied consistently
-app.use(captureRequestMetadata);
+app.use(captureMetadata);
 
 // Error handling middleware 
 app.use(errorHandler);

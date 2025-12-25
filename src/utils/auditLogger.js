@@ -1,9 +1,8 @@
-const AuditLog = require('./models/AuditLog');
+const AuditLog = require('../models/AuditLog');
 
 /**
- * @desc    Create an audit log entry
- * @param   {Object} logData - The audit log data
- * @returns {Promise<AuditLog>}
+ * Create an audit log entry
+ * Never throws errors - fails silently to avoid breaking main logic
  */
 const createAuditLog = async (logData) => {
   try {
@@ -19,9 +18,8 @@ const createAuditLog = async (logData) => {
       severity = 'low'
     } = logData;
 
-    // Validate required fields
     if (!user || !action || !resource) {
-      console.error('[Audit Log] Missing required fields:', logData);
+      console.error('[Audit] Missing required fields:', { user, action, resource });
       return null;
     }
 
@@ -37,20 +35,17 @@ const createAuditLog = async (logData) => {
       severity
     });
 
-    console.log(`[Audit Log] ${action} by User ${user} on ${resource} ${resourceId || ''}`);
+    console.log(`[Audit] ${action} by User ${user} on ${resource}${resourceId ? ' ID: ' + resourceId : ''}`);
     return auditEntry;
 
   } catch (error) {
-    // Never throw errors in audit logging (fail silently to avoid breaking main logic)
-    console.error('[Audit Log] Failed to create log:', error.message);
+    console.error('[Audit] Failed to create log:', error.message);
     return null;
   }
 };
 
 /**
- * @desc    Bulk create audit logs (for batch operations)
- * @param   {Array} logsArray - Array of log data objects
- * @returns {Promise<Array>}
+ * Bulk create audit logs (for batch operations)
  */
 const createBulkAuditLogs = async (logsArray) => {
   try {
@@ -59,20 +54,17 @@ const createBulkAuditLogs = async (logsArray) => {
     }
 
     const logs = await AuditLog.insertMany(logsArray, { ordered: false });
-    console.log(`[Audit Log] Created ${logs.length} bulk entries`);
+    console.log(`[Audit] Created ${logs.length} bulk entries`);
     return logs;
 
   } catch (error) {
-    console.error('[Audit Log] Bulk creation failed:', error.message);
+    console.error('[Audit] Bulk creation failed:', error.message);
     return [];
   }
 };
 
 /**
- * @desc    Get audit logs with filters
- * @param   {Object} filters - Query filters
- * @param   {Object} options - Pagination options
- * @returns {Promise<Object>}
+ * Get audit logs with filters and pagination
  */
 const getAuditLogs = async (filters = {}, options = {}) => {
   try {
@@ -122,13 +114,35 @@ const getAuditLogs = async (filters = {}, options = {}) => {
     };
 
   } catch (error) {
-    console.error('[Audit Log] Query failed:', error.message);
+    console.error('[Audit] Query failed:', error.message);
     throw error;
+  }
+};
+
+/**
+ * Get audit logs for specific resource
+ */
+const getResourceAuditLogs = async (resource, resourceId, options = {}) => {
+  try {
+    const { limit = 20, sortBy = '-createdAt' } = options;
+
+    const logs = await AuditLog.find({ resource, resourceId })
+      .populate('user', 'name email role')
+      .sort(sortBy)
+      .limit(limit)
+      .lean();
+
+    return logs;
+
+  } catch (error) {
+    console.error('[Audit] Resource query failed:', error.message);
+    return [];
   }
 };
 
 module.exports = {
   createAuditLog,
   createBulkAuditLogs,
-  getAuditLogs
+  getAuditLogs,
+  getResourceAuditLogs
 };

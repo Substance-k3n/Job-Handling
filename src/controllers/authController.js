@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const { generateToken } = require('../utils/tokenUtils');
 const { successResponse, errorResponse } = require('../utils/responseUtils');
+const { createAuditLog } = require('../utils/auditLogger');
 
 const register = async (req, res, next) => {
   try {
@@ -19,6 +20,20 @@ const register = async (req, res, next) => {
     });
 
     const token = generateToken(user._id, user.role);
+
+    // Create audit log for registration
+    await createAuditLog({
+      user: user._id,
+      action: 'REGISTER',
+      resource: 'Auth',
+      ipAddress: req.auditMetadata?.ipAddress,
+      userAgent: req.auditMetadata?.userAgent,
+      details: {
+        email: user.email,
+        role: user.role
+      },
+      severity: 'low'
+    });
 
     return successResponse(res, 201, 'User registered successfully', {
       user,
@@ -46,6 +61,19 @@ const login = async (req, res, next) => {
 
     const token = generateToken(user._id, user.role);
     user.password = undefined;
+
+    // Create audit log for successful login
+    await createAuditLog({
+      user: user._id,
+      action: 'LOGIN_SUCCESS',
+      resource: 'Auth',
+      ipAddress: req.auditMetadata?.ipAddress,
+      userAgent: req.auditMetadata?.userAgent,
+      details: {
+        email: user.email
+      },
+      severity: 'low'
+    });
 
     return successResponse(res, 200, 'Login successful', {
       user,

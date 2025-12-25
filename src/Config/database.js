@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
+    console.log('MONGODB_URI present:', !!process.env.MONGODB_URI);
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
@@ -29,6 +30,7 @@ const connectDB = async () => {
 
 
     process.on('SIGINT', async () => {
+      console.log('SIGINT received, stack trace follow:\n', new Error().stack);
       await mongoose.connection.close();
       console.log('MongoDB connection closed due to app termination');
       process.exit(0);
