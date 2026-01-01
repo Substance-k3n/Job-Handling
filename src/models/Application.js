@@ -1,96 +1,72 @@
 const mongoose = require('mongoose');
 
 const applicationSchema = new mongoose.Schema({
-  job: {
+  jobId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Job',
-    required: true
-  },
-  applicant: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  coverLetter: {
-    type: String,
-    trim: true
-  },
-  cvPath: {
-    type: String,
-    required: [true, 'CV is required']
-  },
-
-  /* --- ENTERPRISE PIPELINE FIELDS --- */
-  pipeline_stage: {
-    type: String,
-    enum: ['applied', 'screening', 'interview', 'assessment', 'offer', 'hired', 'rejected'],
-    default: 'applied',
+    required: true,
     index: true
   },
-
-  stage_history: [{
-    stage: {
+  applicant: {
+    name: {
       type: String,
-      enum: ['applied', 'screening', 'interview', 'assessment', 'offer', 'hired', 'rejected'],
+      required: true,
+      trim: true
+    },
+    email: {
+      type: String,
+      required: true,
+      lowercase: true,
+      trim: true
+    },
+    phoneNumber: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    country: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    city: {
+      type: String,
+      required: true,
+      trim: true
+    }
+  },
+  answers: [{
+    fieldId: {
+      type: String,
       required: true
     },
-    changed_by: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
-    },
-    changed_at: {
-      type: Date,
-      default: Date.now
-    },
-    notes: String
+    value: mongoose.Schema.Types.Mixed
   }],
-
-  current_stage_entered: {
-    type: Date,
-    default: Date.now
+  isSaved: {
+    type: Boolean,
+    default: false,
+    index: true
   },
-
-  /* --- LEGACY STATUS (kept for backward compatibility) --- */
-  status: {
-    type: String,
-    enum: ['pending', 'reviewed', 'accepted', 'rejected'],
-    default: 'pending'
+  isInvited: {
+    type: Boolean,
+    default: false,
+    index: true
   },
-  adminNotes: {
-    type: String
+  isAccepted: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  interviewDetails: {
+    date: Date,
+    time: String,
+    meetLink: String
   }
 }, {
   timestamps: true
 });
 
-/* --- PRE-SAVE HOOKS --- */
-
-// Update timestamp when stage changes
-applicationSchema.pre('save', function(next) {
-  if (this.isModified('pipeline_stage') && !this.isNew) {
-    this.current_stage_entered = new Date();
-  }
-  next();
-});
-
-// Initialize stage history on creation
-applicationSchema.pre('save', function(next) {
-  if (this.isNew) {
-    this.current_stage_entered = new Date();
-    this.stage_history.push({
-      stage: 'applied',
-      changed_by: this.applicant, 
-      changed_at: new Date(),
-      notes: 'Application submitted by candidate'
-    });
-  }
-  next();
-});
-
-// Indexes
-applicationSchema.index({ job: 1, applicant: 1 }, { unique: true });
-applicationSchema.index({ pipeline_stage: 1, createdAt: -1 });
-applicationSchema.index({ applicant: 1, createdAt: -1 });
+// Prevent duplicate applications (same email for same job)
+applicationSchema.index({ jobId: 1, 'applicant.email': 1 }, { unique: true });
 
 module.exports = mongoose.model('Application', applicationSchema);

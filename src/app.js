@@ -14,7 +14,18 @@ const { authorize } = require('./middleware/roleMiddleware');
 const { validateMoveStage } = require('./validators/pipelineValidator');
 const validateRequest = require('./middleware/validateRequest');
 const { moveStage } = require('./controllers/pipelineController');
+const applicationFormRoutes = require('./routes/applicationFormRoutes');
+const adminRoutes = require('./routes/adminRoutes');  
+const publicRoutes = require('./routes/publicRoutes');  
 const app = express();
+
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+
 
 const swaggerOptions = {
   definition: {
@@ -35,7 +46,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: 'http://localhost:5000',
+        url: 'http://localhost:5001',
         description: 'Development server'
       },
       {
@@ -223,27 +234,34 @@ app.patch(
 );
 
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
 
 // Static files for uploaded CVs
 app.use('/uploads', express.static('uploads'));
 
 // Routes
+app.use('/admin', adminRoutes);  
+app.use('/', publicRoutes); 
 app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/pipeline', pipelineRoutes);  // NEW
 app.use('/api/audit', auditRoutes);  
+app.use('/api/application-forms', applicationFormRoutes);  // ADD THIS
+
+const mongoose = require('mongoose');
 
 app.get('/health', (req, res) => {
+  const dbState = mongoose.connection.readyState; // 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
   res.status(200).json({ 
     status: 'OK', 
     message: 'Server is running',
     version: '2.0.0',
-    features: ['ATS Pipeline', 'Audit Logging', 'Kanban Board']
+    features: ['ATS Pipeline', 'Audit Logging', 'Kanban Board'],
+    db: {
+      readyState: dbState,
+      connected: dbState === 1
+    }
   });
 });
 

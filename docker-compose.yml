@@ -1,0 +1,42 @@
+
+services:
+  backend:
+    build: .
+    ports:
+      - "5001:5001"
+    environment:
+      MONGODB_URI: "mongodb://mongo:27017/job-platform"
+      PORT: 5001
+      NODE_ENV: "development" 
+      SWAGGER_ENABLED: "true" 
+      MINIO_ENDPOINT: "minio"
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: "admin"
+      MINIO_SECRET_KEY: "password123"
+    restart: on-failure
+    depends_on:
+      - mongo
+
+  # ADD THIS SECTION BELOW
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  minio:
+    image: quay.io/minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+
+volumes:
+  minio-data:
+  mongo-data: # ADD THIS TOO

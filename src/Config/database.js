@@ -1,24 +1,27 @@
 const mongoose = require('mongoose');
 
-
+/**
+ * Connect to MongoDB using ONLY process.env.MONGODB_URI.
+ * Throws if MONGODB_URI is missing or if connection fails.
+ * Deprecated mongoose options have been removed.
+ */
 const connectDB = async () => {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error('MONGODB_URI is not set. Set the environment variable before starting the app.');
+  }
+
   try {
-    console.log('MONGODB_URI present:', !!process.env.MONGODB_URI);
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-     
-      maxPoolSize: 10, // maximum users that can access the database concurretnly 
-      serverSelectionTimeoutMS: 5000, // If the Server Selection takes more than 5 it will reset
-      socketTimeoutMS: 45000, // After the connection if the back and fourths take more than 45secs it will abort
+    console.log('Connecting to MongoDB using MONGODB_URI');
+
+    const conn = await mongoose.connect(uri, {
+      // Removed deprecated options: useNewUrlParser / useUnifiedTopology
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
     });
 
     console.log(`MongoDB connected: ${conn.connection.host}`);
-
-    // connection events
-    mongoose.connection.on('connected', () => {
-      console.log('Mongoose connected to MongoDB');
-    });
 
     mongoose.connection.on('error', (err) => {
       console.error('Mongoose connection error:', err);
@@ -28,19 +31,26 @@ const connectDB = async () => {
       console.log('Mongoose disconnected from MongoDB');
     });
 
+    // graceful shutdown
+    const onSig = async () => {
+      try {
+        await mongoose.connection.close();
+        console.log('MongoDB connection closed due to app termination');
+      } catch (err) {
+        console.error('Error closing MongoDB connection on shutdown:', err);
+      } finally {
+        process.exit(0);
+      }
+    };
 
-    process.on('SIGINT', async () => {
-      console.log('SIGINT received, stack trace follow:\n', new Error().stack);
-      await mongoose.connection.close();
-      console.log('MongoDB connection closed due to app termination');
-      process.exit(0);
-    });
+    process.once('SIGINT', onSig);
+    process.once('SIGTERM', onSig);
 
-  } catch (error) {
-    console.error('MongoDB connection Failed:', error.message);
-    // Retry connection after 5 seconds
-    console.log('Retrying connection in 5 seconds...');
-    setTimeout(connectDB, 5000);
+    return conn;
+  } catch (err) {
+    console.error('MongoDB connection failed:', err);
+    // Do not retry silently; fail fast so caller can decide to retry or exit.
+    throw err;
   }
 };
 

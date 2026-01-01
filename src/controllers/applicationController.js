@@ -1,171 +1,229 @@
 const Application = require('../models/Application');
 const Job = require('../models/Job');
+const JobField = require('../models/JobField');
 const { successResponse, errorResponse } = require('../utils/responseUtils');
 
-// 1. Apply for a Job (Standard User)
-const applyForJob = async (req, res, next) => {
-  try {
-    const { jobId, coverLetter } = req.body;
-
-    const job = await Job.findById(jobId);
-    if (!job) return errorResponse(res, 404, 'Job not found');
-    if (job.status !== 'active') return errorResponse(res, 400, 'This job is no longer accepting applications');
-
-    if (!req.file) return errorResponse(res, 400, 'CV file is required');
-
-    const existingApplication = await Application.findOne({
-      job: jobId,
-      applicant: req.user.id
-    });
-
-    if (existingApplication) return errorResponse(res, 400, 'You have already applied for this job');
-
-    const application = await Application.create({
-      job: jobId,
-      applicant: req.user.id,
-      coverLetter,
-      cvPath: req.file.path
-      // pipeline_stage defaults to 'applied' in model
-      // stage_history is automatically populated by our model's pre-save hook
-    });
-
-    await application.populate('job', 'title');
-    await application.populate('applicant', 'name email');
-
-    return successResponse(res, 201, 'Application submitted successfully', application);
-  } catch (error) {
-    next(error);
-  }
-};
-
-// 2. Get logged in user's applications
-const getMyApplications = async (req, res, next) => {
-  try {
-    const applications = await Application.find({ applicant: req.user.id })
-      .populate('job', 'title company location type')
-      .sort({ createdAt: -1 });
-
-    return successResponse(res, 200, 'Applications retrieved successfully', applications);
-  } catch (error) {
-    next(error);
-  }
-};
-
-// 3. Get all applications (Admin Only - with Pipeline filtering)
-const getAllApplications = async (req, res, next) => {
-  try {
-    const { page = 1, limit = 10, stage, jobId } = req.query;
-
-    const query = {};
-    if (stage) query.pipeline_stage = stage; // Changed from status to stage
-    if (jobId) query.job = jobId;
-
-    const applications = await Application.find(query)
-      .populate('job', 'title company location')
-      .populate('applicant', 'name email')
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .sort({ createdAt: -1 });
-
-    const count = await Application.countDocuments(query);
-
-    return successResponse(res, 200, 'Applications retrieved successfully', {
-      applications,
-      totalPages: Math.ceil(count / limit),
-      currentPage: page,
-      totalApplications: count
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// 4b. Get applications for a specific job (Admin Only)
-const getJobApplications = async (req, res, next) => {
+/**
+ * STEP 3: User Applies for Job
+ * POST /jobs/:jobId/apply
+ */
+exports.applyForJob = async (req, res, next) => {
   try {
     const { jobId } = req.params;
-    const { page = 1, limit = 10, stage } = req.query;
+    const { applicant, answers } = req.body;
 
-    const query = { job: jobId };
-    if (stage) query.pipeline_stage = stage;
-
-    const applications = await Application.find(query)
-      .populate('job', 'title company location')
-      .populate('applicant', 'name email')
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .sort({ createdAt: -1 });
-
-    const count = await Application.countDocuments(query);
-
-    return successResponse(res, 200, 'Applications for job retrieved successfully', {
-      applications,
-      totalPages: Math.ceil(count / limit),
-      currentPage: page,
-      totalApplications: count
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// 4. Update Application Stage (Admin Only - The Kanban Logic)
-const updateApplicationStage = async (req, res, next) => {
-  try {
-    const { stage, notes } = req.body;
-
-    // Find the application first
-    const application = await Application.findById(req.params.id);
-
-    if (!application) return errorResponse(res, 404, 'Application not found');
-
-    // Update the current stage
-    application.pipeline_stage = stage;
-
-    // Push new entry to history (This is where adminNotes now live)
-    application.stage_history.push({
-      stage: stage,
-      changed_by: req.user.id,
-      notes: notes || `Moved to ${stage} stage`
-    });
-
-    await application.save();
-    
-    await application.populate('job', 'title company');
-    await application.populate('applicant', 'name email');
-
-    return successResponse(res, 200, `Moved to ${stage} successfully`, application);
-  } catch (error) {
-    next(error);
-  }
-};
-
-// 5. Get Application by ID
-const getApplicationById = async (req, res, next) => {
-  try {
-    const application = await Application.findById(req.params.id)
-      .populate('job', 'title company location type')
-      .populate('applicant', 'name email')
-      .populate('stage_history.changed_by', 'name role'); // Helpful for admins to see who moved the candidate
-
-    if (!application) return errorResponse(res, 404, 'Application not found');
-
-    // Access Control
-    if (req.user.role !== 'admin' && application.applicant._id.toString() !== req.user.id) {
-      return errorResponse(res, 403, 'Access denied');
+    // Validate job exists and is visible
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return errorResponse(res, 404, 'Job not found');
     }
 
-    return successResponse(res, 200, 'Application retrieved successfully', application);
+    if (!job.checkVisibility()) {
+      return errorResponse(res, 403, 'This job is no longer accepting applications');
+    }
+
+    // Validate required applicant fields
+    if (!applicant || !applicant.name || !applicant.email || !applicant.phoneNumber || !applicant.country || !applicant.city) {
+      return errorResponse(res, 400, 'Name, email, phone number, country, and city are required');
+    }
+
+    // Check for duplicate application
+    const existing = await Application.findOne({
+      jobId,
+      'applicant.email': applicant.email
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        code: 'DUPLICATE_APPLICATION',
+        message: 'You have already applied for this job.'
+      });
+    }
+
+    // Validate answers against job fields
+    const jobFields = await JobField.findOne({ jobId });
+    if (jobFields && jobFields.fields) {
+      for (const field of jobFields.fields) {
+        if (field.required) {
+          const answer = answers.find(a => a.fieldId === field.id);
+          if (!answer || !answer.value) {
+            return errorResponse(res, 400, `Field "${field.question}" is required`);
+          }
+        }
+      }
+    }
+
+    // Create application
+    const application = await Application.create({
+      jobId,
+      applicant: {
+        name: applicant.name,
+        email: applicant.email,
+        phoneNumber: applicant.phoneNumber,
+        country: applicant.country,
+        city: applicant.city
+      },
+      answers
+    });
+
+    return successResponse(res, 201, 'Application submitted successfully');
+
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = {
-  applyForJob,
-  getMyApplications,
-  getAllApplications,
-  getJobApplications,
-  updateApplicationStage, // Renamed from updateApplicationStatus
-  getApplicationById
+/**
+ * STEP 8: Fetch Responses for a Job (Admin)
+ * GET /admin/jobs/:jobId/responses
+ */
+exports.getJobResponses = async (req, res, next) => {
+  try {
+    const { jobId } = req.params;
+
+    const responses = await Application.find({ jobId })
+      .select('applicant.name applicant.email applicant.phoneNumber isSaved isInvited isAccepted createdAt')
+      .sort({ createdAt: -1 });
+
+    const formattedResponses = responses.map(r => ({
+      responseId: r._id,
+      applicantName: r.applicant.name,
+      applicantEmail: r.applicant.email,
+      applicantPhoneNumber: r.applicant.phoneNumber,
+      submittedAt: r.createdAt,
+      isSaved: r.isSaved,
+      isInvited: r.isInvited,
+      isAccepted: r.isAccepted
+    }));
+
+    return successResponse(res, 200, 'Responses retrieved successfully', formattedResponses);
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * STEP 9: Fetch Single Response Detail (Admin)
+ * GET /admin/responses/:responseId
+ */
+exports.getResponseDetail = async (req, res, next) => {
+  try {
+    const { responseId } = req.params;
+
+    const response = await Application.findById(responseId).populate('jobId', 'title');
+    if (!response) {
+      return errorResponse(res, 404, 'Response not found');
+    }
+
+    // Get job fields to match answers with questions
+    const jobFields = await JobField.findOne({ jobId: response.jobId });
+    
+    const answers = response.answers.map(answer => {
+      const field = jobFields?.fields.find(f => f.id === answer.fieldId);
+      return {
+        question: field ? field.question : 'Unknown',
+        type: field ? field.type : 'unknown',
+        value: answer.value
+      };
+    });
+
+    return successResponse(res, 200, 'Response retrieved successfully', {
+      applicant: {
+        name: response.applicant.name,
+        email: response.applicant.email,
+        phoneNumber: response.applicant.phoneNumber,
+        country: response.applicant.country,
+        city: response.applicant.city
+      },
+      answers,
+      isSaved: response.isSaved,
+      isInvited: response.isInvited,
+      isAccepted: response.isAccepted
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * STEP 10: Save / Unsave Response (Admin)
+ * PATCH /admin/responses/:responseId/save
+ */
+exports.toggleSaveResponse = async (req, res, next) => {
+  try {
+    const { responseId } = req.params;
+    const { isSaved } = req.body;
+
+    const response = await Application.findById(responseId);
+    if (!response) {
+      return errorResponse(res, 404, 'Response not found');
+    }
+
+    response.isSaved = isSaved;
+    await response.save();
+
+    return successResponse(res, 200, 'Response save status updated');
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * STEP 11: Send Interview Email (Admin) - PLACEHOLDER
+ * POST /admin/responses/:responseId/send-invitation
+ */
+exports.sendInterviewInvitation = async (req, res, next) => {
+  try {
+    const { responseId } = req.params;
+    const { interviewDate, interviewTime } = req.body;
+
+    const response = await Application.findById(responseId);
+    if (!response) {
+      return errorResponse(res, 404, 'Response not found');
+    }
+
+    // TODO: Phase 2 - Integrate Google Calendar & Send Email
+    // For now, just mark as invited
+    response.isInvited = true;
+    response.interviewDetails = {
+      date: new Date(interviewDate),
+      time: interviewTime,
+      meetLink: 'https://meet.google.com/placeholder' // TODO: Generate real link
+    };
+    await response.save();
+
+    return successResponse(res, 200, 'Interview invitation sent successfully');
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * STEP 12: Send Acceptance Email (Admin) - PLACEHOLDER
+ * POST /admin/responses/:responseId/send-acceptance
+ */
+exports.sendAcceptanceEmail = async (req, res, next) => {
+  try {
+    const { responseId } = req.params;
+
+    const response = await Application.findById(responseId);
+    if (!response) {
+      return errorResponse(res, 404, 'Response not found');
+    }
+
+    // TODO: Phase 2 - Send Email
+    // For now, just mark as accepted
+    response.isAccepted = true;
+    await response.save();
+
+    return successResponse(res, 200, 'Acceptance Email sent successfully');
+
+  } catch (error) {
+    next(error);
+  }
 };

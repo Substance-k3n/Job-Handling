@@ -1,19 +1,17 @@
 const express = require('express');
 const {
   applyForJob,
-  getMyApplications,
-  getAllApplications,
-  getJobApplications,
-  getApplicationById
+  getJobResponses,
+  getResponseDetail,
+  toggleSaveResponse,
+  sendInterviewInvitation,
+  sendAcceptanceEmail
 } = require('../controllers/applicationController');
 
-// NEW: Import the logic from your pipelineController
 const {
-  moveStage,
-  getStageHistory
+  moveStage
 } = require('../controllers/pipelineController');
 
-// Import Validators matching your screenshot folder
 const { applicationValidator } = require('../validators/applicationValidator');
 const { 
   validateMoveStage, 
@@ -23,147 +21,34 @@ const {
 const validateRequest = require('../middleware/validateRequest');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
-const upload = require('../config/multer');
+const { upload, uploadToMinio } = require('../config/multer');
 
 const router = express.Router();
 
-// User routes
-/**
- * @swagger
- * /api/applications:
- *   post:
- *     tags: [Applications]
- *     summary: Apply for a job (user only)
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               job:
- *                 type: string
- *               coverLetter:
- *                 type: string
- *               cv:
- *                 type: string
- *                 format: binary
- *     responses:
- *       201:
- *         description: Application submitted
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Application'
- *       400:
- *         description: Validation error
- */
+// --- USER ROUTES ---
 router.post(
-  '/',
+  '/:jobId/apply',
   protect,
   authorize('user'),
   upload.single('cv'),
+  uploadToMinio,
   applicationValidator,
   validateRequest,
   applyForJob
 );
 
-/**
- * @swagger
- * /api/applications/my-applications:
- *   get:
- *     tags: [Applications]
- *     summary: Get current user's applications (user only)
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of user's applications
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Application'
- */
-router.get('/my-applications', protect, authorize('user'), getMyApplications);
+// --- ADMIN ROUTES ---
 
-// Admin routes
-/**
- * @swagger
- * /api/applications:
- *   get:
- *     tags: [Applications]
- *     summary: Get all applications (admin only)
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of applications
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Application'
- */
-router.get('/', protect, authorize('admin'), getAllApplications);
+// Get all applications/responses for a specific job
+router.get('/job/:jobId', protect, authorize('admin'), getJobResponses);
 
-/**
- * @swagger
- * /api/applications/job/{jobId}:
- *   get:
- *     tags: [Applications]
- *     summary: Get applications for a job (admin only)
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: jobId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: List of applications for the job
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Application'
- */
-router.get('/job/:jobId', protect, authorize('admin'), getJobApplications);
+// Get detail for a single application
+router.get('/:responseId', protect, authorize('admin'), getResponseDetail);
 
-/**
- * @swagger
- * /api/applications/{id}/status:
- *   patch:
- *     tags: [Applications]
- *     summary: Update application status (admin only)
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               status:
- *                 type: string
- *     responses:
- *       200:
- *         description: Application status updated
- */
+// Save or unsave an application
+router.patch('/:responseId/save', protect, authorize('admin'), toggleSaveResponse);
+
+// Move application stage (Pipeline)
 router.patch(
   '/:id/move-stage',
   protect,
@@ -173,29 +58,8 @@ router.patch(
   moveStage
 );
 
-// Shared route
-/**
- * @swagger
- * /api/applications/{id}:
- *   get:
- *     tags: [Applications]
- *     summary: Get application by id (authenticated)
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Application
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Application'
- */
-router.get('/:id', protect, validateApplicationId, validateRequest, getApplicationById);
+// Invitations and Acceptances
+router.post('/:responseId/send-invitation', protect, authorize('admin'), sendInterviewInvitation);
+router.post('/:responseId/send-acceptance', protect, authorize('admin'), sendAcceptanceEmail);
 
 module.exports = router;
