@@ -1,7 +1,6 @@
 const Job = require('../models/Job');
 const JobField = require('../models/JobField');
 const { successResponse, errorResponse } = require('../utils/responseUtils');
-const mongoose = require('mongoose');
 
 /**
  * STEP 2: Create Job (Admin)
@@ -11,12 +10,10 @@ exports.createJob = async (req, res, next) => {
   try {
     const { title, description, validFrom, validTo } = req.body;
 
-    // Validation
     if (!title || !description || !validTo) {
       return errorResponse(res, 400, 'Title, description, and validTo are required');
     }
 
-    // Create job (status = INACTIVE by default)
     const job = await Job.create({
       title,
       description,
@@ -44,16 +41,13 @@ exports.addJobField = async (req, res, next) => {
     const { jobId } = req.params;
     const { type, question, options, required, order } = req.body;
 
-    // Validate job exists
     const job = await Job.findById(jobId);
     if (!job) {
       return errorResponse(res, 404, 'Job not found');
     }
 
-    // Generate field ID
     const fieldId = `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Find or create JobField document
     let jobFields = await JobField.findOne({ jobId });
 
     if (!jobFields) {
@@ -63,7 +57,6 @@ exports.addJobField = async (req, res, next) => {
       });
     }
 
-    // Add new field
     jobFields.fields.push({
       id: fieldId,
       type,
@@ -98,7 +91,6 @@ exports.reorderFields = async (req, res, next) => {
       return errorResponse(res, 404, 'Job fields not found');
     }
 
-    // Update order for each field
     orders.forEach(({ fieldId, order }) => {
       const field = jobFields.fields.find(f => f.id === fieldId);
       if (field) {
@@ -134,7 +126,6 @@ exports.updateJobField = async (req, res, next) => {
       return errorResponse(res, 404, 'Field not found');
     }
 
-    // Update field properties
     Object.keys(updates).forEach(key => {
       if (key !== 'id' && key !== '_id') {
         field[key] = updates[key];
@@ -191,12 +182,19 @@ exports.updateJobStatus = async (req, res, next) => {
       return errorResponse(res, 404, 'Job not found');
     }
 
+    // UPDATE: If status is ACTIVE, set validFrom to current date/time
+    // This ensures now >= validFrom is TRUE
+    if (status === 'ACTIVE') {
+      job.validFrom = new Date(); 
+    }
+
     job.status = status;
     await job.save();
 
-    return successResponse(res, 200, 'Job status updated successfully', {
+    return successResponse(res, 200, 'Job published and live successfully', {
       id: job._id,
-      status: job.status
+      status: job.status,
+      validFrom: job.validFrom // Include this to verify it changed from Jan 12th
     });
 
   } catch (error) {
@@ -264,7 +262,6 @@ exports.deleteJob = async (req, res, next) => {
       return errorResponse(res, 404, 'Job not found');
     }
 
-    // Also delete associated fields
     await JobField.deleteOne({ jobId });
 
     return successResponse(res, 200, 'Job deleted successfully');

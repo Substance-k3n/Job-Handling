@@ -1,83 +1,70 @@
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const { promisify } = require('util');
 const minioClient = require('../utils/s3Client');
-// --- YOUR ORIGINAL LOCAL STORAGE CODE (KEEPING IT) ---
-const uploadDir = 'uploads/cvs';
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, `cv-${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
-});
-
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = /pdf|doc|docx/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
-  if (extname && mimetype) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only PDF and DOC/DOCX files are allowed'), false);
-  }
-};
+// --- 1. Memory Storage (Does NOT save to PC disk) ---
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: fileFilter
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /pdf|doc|docx/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) cb(null, true);
+    else cb(new Error('Only PDF and DOC/DOCX files are allowed'), false);
+  }
 });
 
-// --- NEW: THE MINIO COPY MIDDLEWARE ---
+// --- 2. Direct Cloud Streaming Middleware ---
 const uploadToMinio = async (req, res, next) => {
   if (!req.file) return next();
 
-  const bucketName = 'job-uploads'; // Make sure this bucket exists in MinIO!
-  const fileName = req.file.filename;
-  const filePath = req.file.path; // This is the path to the file on your local PC
+  const bucketName = 'job-uploads';
+  const fileName = `cv-${Date.now()}-${req.file.originalname}`;
 
   try {
-    // Promisify callback-style MinIO methods for safe async/await usage
     const bucketExists = promisify(minioClient.bucketExists).bind(minioClient);
     const makeBucket = promisify(minioClient.makeBucket).bind(minioClient);
-    const fPutObject = promisify(minioClient.fPutObject).bind(minioClient);
+    const putObject = promisify(minioClient.putObject).bind(minioClient);
+    const setBucketPolicy = promisify(minioClient.setBucketPolicy).bind(minioClient);
 
-    console.log('MinIO: checking bucket existence', { bucketName });
     const exists = await bucketExists(bucketName);
-    console.log('MinIO: bucket exists?', { bucketName, exists });
     if (!exists) {
-      console.log('MinIO: creating bucket', { bucketName });
       await makeBucket(bucketName, 'us-east-1');
-      console.log('MinIO: bucket created', { bucketName });
+      
+      const policy = {
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Effect: "Allow",
+            Principal: { AWS: ["*"] },
+            Action: ["s3:GetBucketLocation", "s3:ListBucket"],
+            Resource: [`arn:aws:s3:::${bucketName}`],
+          },
+          {
+            Effect: "Allow",
+            Principal: { AWS: ["*"] },
+            Action: ["s3:GetObject"],
+            Resource: [`arn:aws:s3:::${bucketName}/*`],
+          },
+        ],
+      };
+      await setBucketPolicy(bucketName, JSON.stringify(policy));
     }
 
-    console.log('MinIO: uploading file', { bucketName, fileName, filePath });
-    await fPutObject(bucketName, fileName, filePath);
+    // --- 3. Stream from Memory (Buffer) to MinIO ---
+    await putObject(bucketName, fileName, req.file.buffer);
 
-    // Build public URL using environment variables (fall back to localhost)
-    const publicEndpoint = process.env.MINIO_PUBLIC_ENDPOINT || process.env.MINIO_ENDPOINT || 'localhost';
-    const publicPort = process.env.MINIO_PORT || 9000;
-    req.file.minioUrl = `http://${publicEndpoint}:${publicPort}/${bucketName}/${fileName}`;
-
-    console.log(`File successfully copied to MinIO: ${fileName}`);
+    // Build the URL for the Admin (Browser accessible)
+    req.file.minioUrl = `http://localhost:9000/${bucketName}/${fileName}`;
+    
+    console.log('Upload Success: File streamed directly to Cloud. No local disk trace.');
     next();
   } catch (err) {
-    console.error('MinIO Upload Error:', err && err.message ? err.message : err);
-    // Attach error to request for inspection
-    req.file.minioError = err;
-    // If configured, fail the request so the client sees the error
-    if (process.env.MINIO_FAIL_FAST === 'true') {
-      return next(err);
-    }
-    // Otherwise continue but keep verbose logs
+    console.error('MinIO Streaming Error:', err.message);
     next();
   }
 };

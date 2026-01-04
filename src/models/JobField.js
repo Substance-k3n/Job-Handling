@@ -7,8 +7,8 @@ const fieldSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['short_answer', 'paragraph', 'multiple_choice', 'checkboxes', 'dropdown', 'file', 'rating', 'date', 'time', 'file_upload'],
-    required: true, 
+    enum: ['short_answer', 'paragraph', 'multiple_choice', 'checkboxes', 'dropdown', 'file', 'rating', 'date', 'time'],
+    required: true
   },
   question: {
     type: String,
@@ -39,7 +39,6 @@ const jobFieldSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index
 jobFieldSchema.index({ jobId: 1 });
 
 module.exports = mongoose.model('JobField', jobFieldSchema);

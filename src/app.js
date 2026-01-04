@@ -27,6 +27,22 @@ app.use(express.urlencoded({ extended: true }));
 
 
 
+app.use('/api/admin/jobs', jobRoutes);
+// Static files for uploaded CVs
+app.use('/uploads', express.static('uploads'));
+
+// Routes
+
+app.use('/api/admin/jobs', adminRoutes);  
+app.use('/', applicationFormRoutes);
+app.use('/api', publicRoutes); 
+
+app.use('/api/auth', authRoutes);
+
+app.use('/api/applications', applicationRoutes);
+app.use('/api/pipeline', pipelineRoutes);  // NEW
+app.use('/api/audit', auditRoutes);  
+
 const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
@@ -236,18 +252,7 @@ app.patch(
 
 
 
-// Static files for uploaded CVs
-app.use('/uploads', express.static('uploads'));
 
-// Routes
-app.use('/admin', adminRoutes);  
-app.use('/', publicRoutes); 
-app.use('/api/auth', authRoutes);
-app.use('/api/jobs', jobRoutes);
-app.use('/api/applications', applicationRoutes);
-app.use('/api/pipeline', pipelineRoutes);  // NEW
-app.use('/api/audit', auditRoutes);  
-app.use('/api/application-forms', applicationFormRoutes);  // ADD THIS
 
 const mongoose = require('mongoose');
 

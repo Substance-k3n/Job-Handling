@@ -10,7 +10,6 @@ exports.getPublicJobs = async (req, res, next) => {
   try {
     const now = new Date();
 
-    // Find visible jobs
     const jobs = await Job.find({
       status: 'ACTIVE',
       validFrom: { $lte: now },
@@ -19,7 +18,6 @@ exports.getPublicJobs = async (req, res, next) => {
       .select('title description validFrom validTo')
       .sort({ createdAt: -1 });
 
-    // Format response (shortDescription = first 100 chars of description)
     const formattedJobs = jobs.map(job => ({
       id: job._id,
       title: job.title,
@@ -48,15 +46,12 @@ exports.getPublicJobById = async (req, res, next) => {
       return errorResponse(res, 404, 'Job not found');
     }
 
-    // Check if job is visible
     if (!job.checkVisibility()) {
       return errorResponse(res, 403, 'This job is no longer available');
     }
 
-    // Get job fields
     const jobFields = await JobField.findOne({ jobId });
 
-    // Always add required applicant fields (name, email, phone, country, city)
     const fields = jobFields && jobFields.fields ? 
       jobFields.fields.sort((a, b) => a.order - b.order) : [];
 

@@ -1,12 +1,14 @@
-// 1. Import the form controller at the top
-const { createOrUpdateForm } = require('../controllers/applicationFormController');
 const express = require('express');
+const router = express.Router();
+
+// 1. IMPORT (Make sure these names match the controller)
+const { addJobField } = require('../controllers/applicationFormController');
 const {
   createJob,
   getAdminJobs,
   getAdminJobById,
   deleteJob,
-  updateJobStatus // Added this since it exists in your controller
+  updateJobStatus
 } = require('../controllers/jobController');
 
 const { 
@@ -19,8 +21,6 @@ const validateRequest = require('../middleware/validateRequest');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 
-const router = express.Router();
-
 // --- PUBLIC ROUTES ---
 router.get('/public', getPublicJobs);
 router.get('/public/:jobId', getPublicJobById);
@@ -29,7 +29,10 @@ router.get('/public/:jobId', getPublicJobById);
 router.get('/', protect, authorize('admin'), getAdminJobs);
 router.get('/:id', protect, authorize('admin'), getAdminJobById);
 router.post('/', protect, authorize('admin'), jobValidator, validateRequest, createJob);
-router.post('/:id/fields', protect, authorize('admin'), createOrUpdateForm);
+
+// FIXED LINE 32: Changed 'createOrUpdateForm' to 'addJobField'
+router.post('/:id/fields', protect, authorize('admin'), addJobField);
+
 router.delete('/:id', protect, authorize('admin'), deleteJob);
 
 // Change the status of a job (ACTIVE/INACTIVE)

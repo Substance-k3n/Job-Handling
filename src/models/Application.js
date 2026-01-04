@@ -66,7 +66,6 @@ const applicationSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Prevent duplicate applications (same email for same job)
 applicationSchema.index({ jobId: 1, 'applicant.email': 1 }, { unique: true });
 
 module.exports = mongoose.model('Application', applicationSchema);
