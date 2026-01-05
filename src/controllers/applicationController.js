@@ -13,7 +13,7 @@ exports.applyForJob = async (req, res, next) => {
   try {
     const { jobId } = req.params;
 
-    // 1. Parse stringified JSON from form-data (Multer sends these as strings)
+    // Parse stringified JSON from form-data
     const applicant = typeof req.body.applicant === 'string' 
       ? JSON.parse(req.body.applicant) 
       : req.body.applicant;
@@ -22,7 +22,13 @@ exports.applyForJob = async (req, res, next) => {
       ? JSON.parse(req.body.answers) 
       : req.body.answers;
 
-    // 2. Job Visibility & Duplicate Checks
+    // Validate required applicant fields
+    if (!applicant?.name || !applicant?.email || !applicant?.phoneNumber || 
+        !applicant?.country || !applicant?.city) {
+      return errorResponse(res, 400, 'Name, email, phone number, country, and city are required');
+    }
+
+    // Job Visibility & Duplicate Checks
     const job = await Job.findById(jobId);
     if (!job || !job.checkVisibility()) {
       return errorResponse(res, 403, 'This job is no longer accepting applications');
@@ -30,20 +36,18 @@ exports.applyForJob = async (req, res, next) => {
 
     const existing = await Application.findOne({ jobId, 'applicant.email': applicant.email });
     if (existing) {
-      return errorResponse(res, 400, 'You have already applied for this job.');
+      return errorResponse(res, 400, 'You have already applied for this job.', 'DUPLICATE_APPLICATION');
     }
 
-    // 3. Insert the MinIO URL into the correct answer field
+    // Insert MinIO URL into the correct answer field
     if (req.file && req.file.minioUrl) {
-      // The frontend must send 'fileFieldId' so we know which question the CV belongs to
       const fileFieldId = req.body.fileFieldId; 
-      
       answers = answers.map(ans => 
         ans.fieldId === fileFieldId ? { ...ans, value: req.file.minioUrl } : ans
       );
     }
 
-    // 4. Save the application
+    // Save the application
     const application = await Application.create({
       jobId,
       applicant,
@@ -51,11 +55,12 @@ exports.applyForJob = async (req, res, next) => {
       cvUrl: req.file ? req.file.minioUrl : null 
     });
 
-    // 5. Send confirmation email (Phase 2)
+    // Send confirmation email (optional - Phase 2)
     try {
       await sendApplicationConfirmation(applicant.email, applicant.name, job.title);
     } catch (emailError) {
       console.error('Email notification failed:', emailError.message);
+      // Don't fail the application if email fails
     }
 
     return successResponse(res, 201, 'Application submitted successfully');
@@ -64,15 +69,31 @@ exports.applyForJob = async (req, res, next) => {
     next(error);
   }
 };
+
 /**
- * STEP 8: Fetch Responses for a Job (Admin)
+ * STEP 8: Fetch Responses for a Job (Admin) - WITH FILTERING
  * GET /admin/jobs/:jobId/responses
+ * Query params: ?isSaved=true&isInvited=false&isAccepted=true
  */
 exports.getJobResponses = async (req, res, next) => {
   try {
     const { jobId } = req.params;
 
-    const responses = await Application.find({ jobId })
+    // Build filter object based on query parameters
+    const filter = { jobId };
+
+    // Add optional filters
+    if (req.query.isSaved !== undefined) {
+      filter.isSaved = req.query.isSaved === 'true';
+    }
+    if (req.query.isInvited !== undefined) {
+      filter.isInvited = req.query.isInvited === 'true';
+    }
+    if (req.query.isAccepted !== undefined) {
+      filter.isAccepted = req.query.isAccepted === 'true';
+    }
+
+    const responses = await Application.find(filter)
       .select('applicant.name applicant.email applicant.phoneNumber isSaved isInvited isAccepted createdAt')
       .sort({ createdAt: -1 });
 
@@ -87,7 +108,15 @@ exports.getJobResponses = async (req, res, next) => {
       isAccepted: r.isAccepted
     }));
 
-    return successResponse(res, 200, 'Responses retrieved successfully', formattedResponses);
+    return successResponse(res, 200, 'Responses retrieved successfully', {
+      total: formattedResponses.length,
+      filters: {
+        isSaved: req.query.isSaved,
+        isInvited: req.query.isInvited,
+        isAccepted: req.query.isAccepted
+      },
+      responses: formattedResponses
+    });
 
   } catch (error) {
     next(error);
@@ -109,14 +138,13 @@ exports.getResponseDetail = async (req, res, next) => {
 
     const jobFields = await JobField.findOne({ jobId: response.jobId });
     
-    // Maps the stored MinIO URL back to the question for the Admin to see
+    // Map answers to questions
     const answers = response.answers.map(answer => {
-      // Use .id if checking against a Mongoose subdoc ID string
       const field = jobFields?.fields.find(f => f.id === answer.fieldId);
       return {
         question: field ? field.question : 'Unknown Question',
         type: field ? field.type : 'unknown',
-        value: answer.value // This will be the clickable MinIO link for file types
+        value: answer.value
       };
     });
 
@@ -133,6 +161,7 @@ exports.getResponseDetail = async (req, res, next) => {
     next(error);
   }
 };
+
 /**
  * STEP 10: Save / Unsave Response (Admin)
  * PATCH /admin/responses/:responseId/save
@@ -150,7 +179,10 @@ exports.toggleSaveResponse = async (req, res, next) => {
     response.isSaved = isSaved;
     await response.save();
 
-    return successResponse(res, 200, 'Response save status updated');
+    return successResponse(res, 200, 'Response save status updated', {
+      responseId: response._id,
+      isSaved: response.isSaved
+    });
 
   } catch (error) {
     next(error);
@@ -172,14 +204,21 @@ exports.sendInterviewInvitation = async (req, res, next) => {
     }
 
     // PHASE 2: Create Google Calendar event & get Meet link
-    const meetLink = await createGoogleMeetEvent({
-      summary: `Interview for ${response.jobId.title}`,
-      description: `Interview with ${response.applicant.name}`,
-      attendees: [response.applicant.email],
-      date: interviewDate,
-      time: interviewTime
-    });
+    let meetLink = 'https://meet.google.com/placeholder';
+    try {
+      meetLink = await createGoogleMeetEvent({
+        summary: `Interview for ${response.jobId.title}`,
+        description: `Interview with ${response.applicant.name}`,
+        attendees: [response.applicant.email],
+        date: interviewDate,
+        time: interviewTime
+      });
+    } catch (calendarError) {
+      console.error('Google Calendar error:', calendarError.message);
+      // Continue even if calendar fails
+    }
 
+    // Update application
     response.isInvited = true;
     response.interviewDetails = {
       date: new Date(interviewDate),
@@ -189,17 +228,26 @@ exports.sendInterviewInvitation = async (req, res, next) => {
     await response.save();
 
     // PHASE 2: Send interview email
-    const { sendInterviewInvitation } = require('../services/emailService');
-    await sendInterviewInvitation(
-      response.applicant.email,
-      response.applicant.name,
-      response.jobId.title,
-      interviewDate,
-      interviewTime,
-      meetLink
-    );
+    try {
+      const { sendInterviewInvitation } = require('../services/emailService');
+      await sendInterviewInvitation(
+        response.applicant.email,
+        response.applicant.name,
+        response.jobId.title,
+        interviewDate,
+        interviewTime,
+        meetLink
+      );
+    } catch (emailError) {
+      console.error('Email error:', emailError.message);
+      // Don't fail if email fails
+    }
 
-    return successResponse(res, 200, 'Interview invitation sent successfully');
+    return successResponse(res, 200, 'Interview invitation sent successfully', {
+      responseId: response._id,
+      isInvited: response.isInvited,
+      interviewDetails: response.interviewDetails
+    });
 
   } catch (error) {
     console.error('Interview invitation error:', error);
@@ -220,18 +268,27 @@ exports.sendAcceptanceEmail = async (req, res, next) => {
       return errorResponse(res, 404, 'Response not found');
     }
 
+    // Update application
     response.isAccepted = true;
     await response.save();
 
     // PHASE 2: Send acceptance email
-    const { sendAcceptanceEmail } = require('../services/emailService');
-    await sendAcceptanceEmail(
-      response.applicant.email,
-      response.applicant.name,
-      response.jobId.title
-    );
+    try {
+      const { sendAcceptanceEmail } = require('../services/emailService');
+      await sendAcceptanceEmail(
+        response.applicant.email,
+        response.applicant.name,
+        response.jobId.title
+      );
+    } catch (emailError) {
+      console.error('Email error:', emailError.message);
+      // Don't fail if email fails
+    }
 
-    return successResponse(res, 200, 'Acceptance Email sent successfully');
+    return successResponse(res, 200, 'Acceptance Email sent successfully', {
+      responseId: response._id,
+      isAccepted: response.isAccepted
+    });
 
   } catch (error) {
     console.error('Acceptance email error:', error);

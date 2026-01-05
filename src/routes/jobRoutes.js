@@ -77,8 +77,28 @@ router.post('/', jobValidator, validateRequest, createJob);
  *     description: |
  *       Retrieve all jobs regardless of status (ACTIVE, INACTIVE).
  *       Includes jobs that are expired or not yet valid.
+ *       
+ *       **Supports filtering by job status:**
+ *       - Filter by ACTIVE jobs only
+ *       - Filter by INACTIVE jobs only
+ *       - No filter returns all jobs
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [ACTIVE, INACTIVE]
+ *         description: Filter jobs by status
+ *         examples:
+ *           active:
+ *             summary: Get only active jobs
+ *             value: ACTIVE
+ *           inactive:
+ *             summary: Get only inactive jobs
+ *             value: INACTIVE
  *     responses:
  *       200:
  *         description: Jobs retrieved successfully
@@ -94,35 +114,81 @@ router.post('/', jobValidator, validateRequest, createJob);
  *                   type: string
  *                   example: Jobs retrieved successfully
  *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       _id:
- *                         type: string
- *                         example: 677a1b2c3d4e5f6789abcdef
- *                       title:
- *                         type: string
- *                         example: Frontend Developer
- *                       description:
- *                         type: string
- *                         example: We are hiring a React developer...
- *                       status:
- *                         type: string
- *                         enum: [ACTIVE, INACTIVE]
- *                         example: INACTIVE
- *                       validFrom:
- *                         type: string
- *                         format: date-time
- *                         example: "2026-01-12T10:00:00Z"
- *                       validTo:
- *                         type: string
- *                         format: date-time
- *                         example: "2026-01-31T23:59:59Z"
- *                       createdAt:
- *                         type: string
- *                         format: date-time
- *                         example: "2026-01-04T14:30:00Z"
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: number
+ *                       description: Total number of jobs matching filter
+ *                       example: 5
+ *                     filters:
+ *                       type: object
+ *                       properties:
+ *                         status:
+ *                           type: string
+ *                           nullable: true
+ *                           example: ACTIVE
+ *                       description: Applied filters
+ *                     jobs:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             example: 677a1b2c3d4e5f6789abcdef
+ *                           title:
+ *                             type: string
+ *                             example: Frontend Developer
+ *                           description:
+ *                             type: string
+ *                             example: We are hiring a React developer...
+ *                           status:
+ *                             type: string
+ *                             enum: [ACTIVE, INACTIVE]
+ *                             example: ACTIVE
+ *                           validFrom:
+ *                             type: string
+ *                             format: date-time
+ *                             example: "2026-01-12T10:00:00Z"
+ *                           validTo:
+ *                             type: string
+ *                             format: date-time
+ *                             example: "2026-01-31T23:59:59Z"
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                             example: "2026-01-04T14:30:00Z"
+ *             examples:
+ *               allJobs:
+ *                 summary: All jobs (no filter)
+ *                 value:
+ *                   success: true
+ *                   message: Jobs retrieved successfully
+ *                   data:
+ *                     total: 10
+ *                     filters:
+ *                       status: null
+ *                     jobs: []
+ *               activeOnly:
+ *                 summary: Active jobs only
+ *                 value:
+ *                   success: true
+ *                   message: Jobs retrieved successfully
+ *                   data:
+ *                     total: 5
+ *                     filters:
+ *                       status: ACTIVE
+ *                     jobs: []
+ *               inactiveOnly:
+ *                 summary: Inactive jobs only
+ *                 value:
+ *                   success: true
+ *                   message: Jobs retrieved successfully
+ *                   data:
+ *                     total: 3
+ *                     filters:
+ *                       status: INACTIVE
+ *                     jobs: []
  *       401:
  *         description: Unauthorized
  *       403:

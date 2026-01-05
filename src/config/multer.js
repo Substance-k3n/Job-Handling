@@ -59,7 +59,7 @@ const uploadToMinio = async (req, res, next) => {
     await putObject(bucketName, fileName, req.file.buffer);
 
     // Build the URL for the Admin (Browser accessible)
-    req.file.minioUrl = `http://localhost:9000/${bucketName}/${fileName}`;
+    req.file.minioUrl = `http://localhost:9001/${bucketName}/${fileName}`;
     
     console.log('Upload Success: File streamed directly to Cloud. No local disk trace.');
     next();

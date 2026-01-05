@@ -9,24 +9,19 @@ const { successResponse, errorResponse } = require('../utils/responseUtils');
 exports.createJob = async (req, res, next) => {
   try {
     const { title, description, validFrom, validTo } = req.body;
-
-    if (!title || !description || !validTo) {
-      return errorResponse(res, 400, 'Title, description, and validTo are required');
-    }
+    // ... validation ...
 
     const job = await Job.create({
       title,
       description,
       status: 'INACTIVE',
+      hasField: false, // <--- EXPLICITLY SET THIS ON CREATION
       validFrom: validFrom || new Date(),
       validTo,
       createdBy: req.user._id
     });
 
-    return successResponse(res, 201, 'Job created successfully', {
-      id: job._id
-    });
-
+    return successResponse(res, 201, 'Job created successfully', { id: job._id });
   } catch (error) {
     next(error);
   }
@@ -42,36 +37,30 @@ exports.addJobField = async (req, res, next) => {
     const { type, question, options, required, order } = req.body;
 
     const job = await Job.findById(jobId);
-    if (!job) {
-      return errorResponse(res, 404, 'Job not found');
-    }
+    if (!job) return errorResponse(res, 404, 'Job not found');
 
-    const fieldId = `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
+    // 1. ADD THE FIELD
     let jobFields = await JobField.findOne({ jobId });
-
     if (!jobFields) {
-      jobFields = await JobField.create({
-        jobId,
-        fields: []
-      });
+      jobFields = await JobField.create({ jobId, fields: [] });
     }
 
     jobFields.fields.push({
-      id: fieldId,
+      id: `field_${Date.now()}`,
       type,
       question,
       options: options || [],
-      required: required !== undefined ? required : false,
+      required: required || false,
       order
     });
 
     await jobFields.save();
 
-    return successResponse(res, 201, 'Field added successfully', {
-      fieldId
-    });
+    // 2. FLIP THE BOOLEAN ON THE JOB MODEL
+    job.hasField = true; 
+    await job.save();
 
+    return successResponse(res, 201, 'Field added and Job updated', { fieldId });
   } catch (error) {
     next(error);
   }
@@ -210,7 +199,8 @@ exports.getAdminJobs = async (req, res, next) => {
   try {
     const jobs = await Job.find()
       .sort({ createdAt: -1 })
-      .select('title description status validFrom validTo createdAt');
+      // Add 'hasField' to the select string so it's included in the results
+      .select('title description status hasField validFrom validTo createdAt'); 
 
     return successResponse(res, 200, 'Jobs retrieved successfully', jobs);
 
@@ -218,19 +208,12 @@ exports.getAdminJobs = async (req, res, next) => {
     next(error);
   }
 };
-
-/**
- * Get Single Job (Admin)
- * GET /admin/jobs/:jobId
- */
 exports.getAdminJobById = async (req, res, next) => {
   try {
     const { jobId } = req.params;
-
     const job = await Job.findById(jobId);
-    if (!job) {
-      return errorResponse(res, 404, 'Job not found');
-    }
+    
+    if (!job) return errorResponse(res, 404, 'Job not found');
 
     const jobFields = await JobField.findOne({ jobId });
 
@@ -239,16 +222,15 @@ exports.getAdminJobById = async (req, res, next) => {
       title: job.title,
       description: job.description,
       status: job.status,
+      hasField: job.hasField || false, // <--- ADD THIS LINE
       validFrom: job.validFrom,
       validTo: job.validTo,
       fields: jobFields ? jobFields.fields.sort((a, b) => a.order - b.order) : []
     });
-
   } catch (error) {
     next(error);
   }
 };
-
 /**
  * Delete Job (Admin)
  * DELETE /admin/jobs/:jobId

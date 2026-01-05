@@ -61,6 +61,11 @@ const applicationSchema = new mongoose.Schema({
     date: Date,
     time: String,
     meetLink: String
+  },
+  hasField: {
+    type: Boolean,
+    default: false,
+    required: true
   }
 }, {
   timestamps: true
