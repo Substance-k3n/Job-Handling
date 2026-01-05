@@ -1,63 +1,46 @@
 const express = require('express');
 const cors = require('cors');
-const authRoutes = require('./routes/authRoutes');
-const jobRoutes = require('./routes/jobRoutes');
-const applicationRoutes = require('./routes/applicationRoutes');
-const errorHandler = require('./middleware/errorHandler');
 const swaggerJsDoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
+const mongoose = require('mongoose');
+
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const publicRoutes = require('./routes/publicRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const pipelineRoutes = require('./routes/pipelineRoutes');
 const auditRoutes = require('./routes/auditRoutes');
+
+// Import middleware
+const errorHandler = require('./middleware/errorHandler');
 const captureMetadata = require('./middleware/captureMetadata');
-const { protect } = require('./middleware/authMiddleware');
-const { authorize } = require('./middleware/roleMiddleware');
-const { validateMoveStage } = require('./validators/pipelineValidator');
-const validateRequest = require('./middleware/validateRequest');
-const { moveStage } = require('./controllers/pipelineController');
-const applicationFormRoutes = require('./routes/applicationFormRoutes');
-const adminRoutes = require('./routes/adminRoutes');  
-const publicRoutes = require('./routes/publicRoutes');  
+
 const app = express();
 
-
-// Middleware
+// ========================
+// MIDDLEWARE
+// ========================
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(captureMetadata); // Apply globally
 
-
-
-app.use('/api/admin/jobs', jobRoutes);
 // Static files for uploaded CVs
 app.use('/uploads', express.static('uploads'));
 
-// Routes
-
-app.use('/api/admin/jobs', adminRoutes);  
-app.use('/', applicationFormRoutes);
-app.use('/api', publicRoutes); 
-
-app.use('/api/auth', authRoutes);
-
-app.use('/api/applications', applicationRoutes);
-app.use('/api/pipeline', pipelineRoutes);  // NEW
-app.use('/api/audit', auditRoutes);  
-
+// ========================
+// SWAGGER CONFIGURATION
+// ========================
 const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Job Board API',
+      title: 'Talent Pool System API',
       version: '1.0.0',
-      description: 'A professional Job Board Backend API with user authentication, job management, and application tracking. Built with Node.js, Express, MongoDB, and JWT authentication.',
+      description: 'Job application platform with dynamic form builder, admin management, and public job applications.',
       contact: {
         name: 'API Support',
-        email: 'support@jobboard.com',
-        url: 'https://jobboard.com/support'
-      },
-      license: {
-        name: 'MIT',
-        url: 'https://opensource.org/licenses/MIT'
+        email: 'support@company.com'
       }
     },
     servers: [
@@ -66,7 +49,7 @@ const swaggerOptions = {
         description: 'Development server'
       },
       {
-        url: 'https://api.jobboard.com',
+        url: 'https://api.yourcompany.com',
         description: 'Production server'
       }
     ],
@@ -76,114 +59,299 @@ const swaggerOptions = {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-          description: 'Enter your JWT token in the format: Bearer <token>'
+          description: 'Enter JWT token obtained from /auth/login'
         }
       },
       schemas: {
-        User: {
-          type: 'object',
-          properties: {
-            _id: { type: 'string' },
-            name: { type: 'string', example: 'Jane Doe' },
-            email: { type: 'string', format: 'email', example: 'jane@example.com' },
-            role: { type: 'string', enum: ['user', 'admin'], example: 'user' },
-            createdAt: { type: 'string', format: 'date-time' },
-            updatedAt: { type: 'string', format: 'date-time' }
-          }
-        },
-        UserRegister: {
-          allOf: [
-            { $ref: '#/components/schemas/User' },
-            {
-              type: 'object',
-              required: ['name', 'email', 'password'],
-              properties: {
-                password: { type: 'string', example: 'strongPassword123' }
-              }
-            }
-          ]
-        },
-        UserLogin: {
+        // Auth Schemas
+        LoginRequest: {
           type: 'object',
           required: ['email', 'password'],
           properties: {
-            email: { type: 'string', format: 'email' },
-            password: { type: 'string' }
-          }
-        },
-        AuthResponse: {
-          type: 'object',
-          properties: {
-            token: { type: 'string' },
-            user: { $ref: '#/components/schemas/User' }
-          }
-        },
-        Job: {
-          type: 'object',
-          properties: {
-            _id: { type: 'string' },
-            title: { type: 'string' },
-            description: { type: 'string' },
-            requirements: { type: 'array', items: { type: 'string' } },
-            status: { type: 'string', enum: ['active', 'closed'] },
-            postedBy: { type: 'string' },
-            location: { type: 'string' },
-            salary: {
-              type: 'object',
-              properties: {
-                min: { type: 'number' },
-                max: { type: 'number' },
-                currency: { type: 'string' }
-              }
+            email: {
+              type: 'string',
+              format: 'email',
+              example: 'admin@company.com'
             },
-            createdAt: { type: 'string', format: 'date-time' },
-            updatedAt: { type: 'string', format: 'date-time' }
+            password: {
+              type: 'string',
+              format: 'password',
+              example: 'password123'
+            }
           }
         },
-        JobInput: {
+        LoginResponse: {
           type: 'object',
-          required: ['title', 'description'],
           properties: {
-            title: { type: 'string' },
-            description: { type: 'string' },
-            requirements: { type: 'array', items: { type: 'string' } },
-            location: { type: 'string' },
-            salary: {
+            success: {
+              type: 'boolean',
+              example: true
+            },
+            message: {
+              type: 'string',
+              example: 'Login successful'
+            },
+            data: {
               type: 'object',
               properties: {
-                min: { type: 'number' },
-                max: { type: 'number' },
-                currency: { type: 'string' }
+                user: {
+                  type: 'object',
+                  properties: {
+                    _id: { type: 'string' },
+                    name: { type: 'string' },
+                    email: { type: 'string' },
+                    role: { type: 'string', enum: ['admin', 'user'] }
+                  }
+                },
+                token: {
+                  type: 'string',
+                  example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                }
               }
             }
           }
         },
-        Application: {
+
+        // Job Schemas
+        CreateJobRequest: {
           type: 'object',
+          required: ['title', 'description', 'validTo'],
           properties: {
-            _id: { type: 'string' },
-            job: { type: 'string' },
-            applicant: { $ref: '#/components/schemas/User' },
-            coverLetter: { type: 'string' },
-            cvPath: { type: 'string' },
-            status: { type: 'string', enum: ['pending', 'reviewed', 'accepted', 'rejected'] },
-            adminNotes: { type: 'string' },
-            createdAt: { type: 'string', format: 'date-time' }
+            title: {
+              type: 'string',
+              example: 'Frontend Developer'
+            },
+            description: {
+              type: 'string',
+              example: 'We are hiring a React developer'
+            },
+            validFrom: {
+              type: 'string',
+              format: 'date-time',
+              example: '2026-01-12T10:00:00Z'
+            },
+            validTo: {
+              type: 'string',
+              format: 'date-time',
+              example: '2026-01-31T23:59:59Z'
+            }
           }
         },
-        ApplicationInput: {
+        JobResponse: {
           type: 'object',
-          required: ['job'],
           properties: {
-            job: { type: 'string' },
-            coverLetter: { type: 'string' }
+            success: { type: 'boolean', example: true },
+            message: { type: 'string' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', example: 'job_123' }
+              }
+            }
           }
         },
+        UpdateJobStatusRequest: {
+          type: 'object',
+          required: ['status'],
+          properties: {
+            status: {
+              type: 'string',
+              enum: ['ACTIVE', 'INACTIVE'],
+              example: 'ACTIVE'
+            }
+          }
+        },
+
+        // Job Field Schemas
+        AddFieldRequest: {
+          type: 'object',
+          required: ['type', 'question', 'required', 'order'],
+          properties: {
+            type: {
+              type: 'string',
+              enum: ['short_answer', 'paragraph', 'multiple_choice', 'checkboxes', 'dropdown', 'file', 'rating', 'date', 'time'],
+              example: 'multiple_choice'
+            },
+            question: {
+              type: 'string',
+              example: 'Years of Experience'
+            },
+            options: {
+              type: 'array',
+              items: { type: 'string' },
+              example: ['0-1', '2-3', '4-5', '5+']
+            },
+            required: {
+              type: 'boolean',
+              example: true
+            },
+            order: {
+              type: 'number',
+              example: 3
+            }
+          }
+        },
+        FieldResponse: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', example: true },
+            message: { type: 'string' },
+            data: {
+              type: 'object',
+              properties: {
+                fieldId: { type: 'string', example: 'field_34353454' }
+              }
+            }
+          }
+        },
+        ReorderFieldsRequest: {
+          type: 'object',
+          required: ['fields'],
+          properties: {
+            fields: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  order: { type: 'number' }
+                }
+              },
+              example: [
+                { id: 'field_1', order: 1 },
+                { id: 'field_3', order: 2 }
+              ]
+            }
+          }
+        },
+
+        // Public Job Schemas
+        PublicJobListItem: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', example: 'job_123' },
+            title: { type: 'string', example: 'Frontend Developer' },
+            shortDescription: { type: 'string', example: 'React developer needed' },
+            validFrom: { type: 'string', format: 'date-time' },
+            validTo: { type: 'string', format: 'date-time' }
+          }
+        },
+        PublicJobDetail: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            title: { type: 'string' },
+            description: { type: 'string' },
+            fields: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  type: { type: 'string' },
+                  question: { type: 'string' },
+                  options: { type: 'array', items: { type: 'string' } },
+                  required: { type: 'boolean' },
+                  order: { type: 'number' }
+                }
+              }
+            }
+          }
+        },
+
+        // Application Response Schemas
+        ApplicationResponseList: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            message: { type: 'string' },
+            data: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  responseId: { type: 'string' },
+                  applicantName: { type: 'string' },
+                  applicantEmail: { type: 'string' },
+                  applicantPhoneNumber: { type: 'string' },
+                  submittedAt: { type: 'string', format: 'date-time' },
+                  isSaved: { type: 'boolean' },
+                  isInvited: { type: 'boolean' },
+                  isAccepted: { type: 'boolean' }
+                }
+              }
+            }
+          }
+        },
+        ApplicationResponseDetail: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            message: { type: 'string' },
+            data: {
+              type: 'object',
+              properties: {
+                applicant: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string' },
+                    email: { type: 'string' },
+                    phoneNumber: { type: 'string' }
+                  }
+                },
+                answers: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      question: { type: 'string' },
+                      type: { type: 'string' },
+                      value: { oneOf: [{ type: 'string' }, { type: 'array' }] }
+                    }
+                  }
+                },
+                isSaved: { type: 'boolean' },
+                isInvited: { type: 'boolean' },
+                isAccepted: { type: 'boolean' },
+                submittedAt: { type: 'string', format: 'date-time' }
+              }
+            }
+          }
+        },
+
+        // Interview/Acceptance Schemas
+        SendInvitationRequest: {
+          type: 'object',
+          required: ['interviewDate', 'interviewTime'],
+          properties: {
+            interviewDate: {
+              type: 'string',
+              format: 'date',
+              example: '2026-01-20'
+            },
+            interviewTime: {
+              type: 'string',
+              example: '10:00'
+            }
+          }
+        },
+
+        // Error Schema
         ErrorResponse: {
           type: 'object',
           properties: {
-            status: { type: 'string' },
-            message: { type: 'string' }
+            success: {
+              type: 'boolean',
+              example: false
+            },
+            code: {
+              type: 'string',
+              example: 'DUPLICATE_APPLICATION'
+            },
+            message: {
+              type: 'string',
+              example: 'You have already applied for this job.'
+            }
           }
         }
       }
@@ -191,34 +359,50 @@ const swaggerOptions = {
     tags: [
       {
         name: 'Authentication',
-        description: 'User and Company authentication and registration'
+        description: 'Admin authentication endpoints'
       },
       {
-        name: 'Jobs',
-        description: 'Job posting management and retrieval'
+        name: 'Jobs - Public',
+        description: 'Public job viewing endpoints (No auth required)'
       },
       {
-        name: 'Applications',
-        description: 'Job application management and tracking'
-      }
-      ,{
+        name: 'Applications - Public',
+        description: 'Job application endpoints (No auth required)'
+      },
+      {
+        name: 'Jobs - Admin',
+        description: 'Job management endpoints (Admin only)'
+      },
+      {
+        name: 'Job Fields - Admin',
+        description: 'Dynamic form builder endpoints (Admin only)'
+      },
+      {
+        name: 'Applications - Admin',
+        description: 'Application management endpoints (Admin only)'
+      },
+      {
         name: 'Pipeline',
-        description: 'Pipeline and application stage management'
+        description: 'Pipeline and application stage management (Phase 2)'
+      },
+      {
+        name: 'Audit',
+        description: 'System audit logging (Phase 2)'
       }
     ]
   },
-  apis: ['./src/routes/*.js', './src/models/*.js'] // Path to your route and model files
+  apis: ['./src/routes/*.js']
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
 
-// Mount Swagger UI and JSON only in non-production or when explicitly enabled
+// Enable Swagger in development or when explicitly enabled
 const swaggerEnabled = (process.env.NODE_ENV !== 'production') || process.env.SWAGGER_ENABLED === 'true';
 
 if (swaggerEnabled) {
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs, {
     customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'Job Board API Documentation',
+    customSiteTitle: 'Talent Pool System API',
     swaggerOptions: {
       persistAuthorization: true,
       displayRequestDuration: true,
@@ -230,39 +414,24 @@ if (swaggerEnabled) {
     }
   }));
 
-  // Raw OpenAPI JSON (useful for tooling)
   app.get('/api-docs.json', (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.send(swaggerDocs);
   });
-} else {
-  // Keep a small log so it's clear why docs are not mounted
-  // (no console in library code changes; safe to leave optional comment)
+
+  console.log('📚 Swagger documentation available at http://localhost:5001/api-docs');
 }
-app.patch(
-  '/applications/:id/move-stage',
-  protect,
-  authorize('admin'),
-  captureMetadata, // ADD THIS
-  validateMoveStage,
-  validateRequest,
-  moveStage
-);
 
-
-
-
-
-
-const mongoose = require('mongoose');
-
+// ========================
+// HEALTH CHECK
+// ========================
 app.get('/health', (req, res) => {
-  const dbState = mongoose.connection.readyState; // 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
+  const dbState = mongoose.connection.readyState;
   res.status(200).json({ 
     status: 'OK', 
     message: 'Server is running',
     version: '2.0.0',
-    features: ['ATS Pipeline', 'Audit Logging', 'Kanban Board'],
+    features: ['Dynamic Form Builder', 'Job Applications', 'Admin Dashboard'],
     db: {
       readyState: dbState,
       connected: dbState === 1
@@ -270,12 +439,56 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Ensure captureRequestMetadata is applied consistently
-app.use(captureMetadata);
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Talent Pool System API',
+    documentation: '/api-docs',
+    health: '/health',
+    version: '1.0.0'
+  });
+});
 
-// Error handling middleware 
+// ========================
+// ROUTES (NO DUPLICATES!)
+// ========================
+
+// PUBLIC ROUTES (No Authentication)
+app.use('/api', publicRoutes);
+
+// AUTHENTICATION ROUTES
+app.use('/api/auth', authRoutes);
+
+// ADMIN ROUTES (Requires Authentication + Admin Role)
+app.use('/api/admin', adminRoutes);
+
+// PHASE 2 ROUTES
+app.use('/api/pipeline', pipelineRoutes);
+app.use('/api/audit', auditRoutes);
+
+// ========================
+// 404 HANDLER
+// ========================
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.method} ${req.originalUrl} not found`,
+    availableEndpoints: {
+      documentation: 'GET /api-docs',
+      health: 'GET /health',
+      publicJobs: 'GET /api/jobs',
+      jobDetail: 'GET /api/jobs/:jobId',
+      applyJob: 'POST /api/jobs/:jobId/apply',
+      adminLogin: 'POST /api/auth/login',
+      adminJobs: 'GET /api/admin/jobs (requires auth)',
+      createJob: 'POST /api/admin/jobs (requires auth)'
+    }
+  });
+});
+
+// ========================
+// ERROR HANDLER
+// ========================
 app.use(errorHandler);
 
 module.exports = app;
-
-

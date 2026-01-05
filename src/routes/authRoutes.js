@@ -1,6 +1,6 @@
 const express = require('express');
-const { register, login, getMe } = require('../controllers/authController');
-const { registerValidator, loginValidator } = require('../validators/authValidator');
+const { login, getMe } = require('../controllers/authController');
+const { loginValidator } = require('../validators/authValidator');
 const validateRequest = require('../middleware/validateRequest');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -8,71 +8,73 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/auth/register:
+ * /auth/login:
  *   post:
  *     tags: [Authentication]
- *     summary: Register a new user
+ *     summary: Admin login
+ *     description: Authenticate admin user and receive JWT token
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/UserRegister'
- *     responses:
- *       201:
- *         description: User registered successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/AuthResponse'
- *       400:
- *         description: Validation error
- */
-router.post('/register', registerValidator, validateRequest, register);
-
-/**
- * @swagger
- * /api/auth/login:
- *   post:
- *     tags: [Authentication]
- *     summary: Login a user and receive a JWT
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/UserLogin'
+ *             $ref: '#/components/schemas/LoginRequest'
  *     responses:
  *       200:
- *         description: Successful login
+ *         description: Login successful
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/AuthResponse'
+ *               $ref: '#/components/schemas/LoginResponse'
  *       401:
  *         description: Invalid credentials
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: Invalid email or password
  */
 router.post('/login', loginValidator, validateRequest, login);
 
 /**
  * @swagger
- * /api/auth/me:
+ * /auth/me:
  *   get:
  *     tags: [Authentication]
  *     summary: Get current authenticated user
+ *     description: Retrieve profile information of the currently logged-in user
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Current user
+ *         description: User profile retrieved successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: User profile retrieved
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     role:
+ *                       type: string
  *       401:
- *         description: Unauthorized
+ *         description: Unauthorized - Invalid or missing token
  */
 router.get('/me', protect, getMe);
 
 module.exports = router;
-
