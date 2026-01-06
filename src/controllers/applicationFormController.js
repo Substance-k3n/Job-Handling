@@ -11,24 +11,17 @@ const mongoose = require('mongoose');
  */
 exports.addJobField = async (req, res, next) => {
   try {
-    // 1. Log to see exactly what Express is seeing
-    console.log("POST PARAMS:", req.params); 
-
-    // 2. Try to get the ID from params, and fallback to the URL if params are empty
-    const jobId = req.params.jobId || req.originalUrl.split('/')[4]; 
-
+    const jobId = req.params.jobId;
     const { type, question, options, required, order } = req.body;
-    // 3. Perform the validation
+
+    // Validate job ID
     if (!jobId || !mongoose.Types.ObjectId.isValid(jobId)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Invalid job ID",
-        debug_captured_id: jobId 
-      });
+      return errorResponse(res, 400, 'Invalid job ID');
     }
+
     // Check if job exists
-    const jobExists = await Job.findById(jobId);
-    if (!jobExists) {
+    const job = await Job.findById(jobId);
+    if (!job) {
       return errorResponse(res, 404, 'Job not found');
     }
 
@@ -46,17 +39,17 @@ exports.addJobField = async (req, res, next) => {
     }
 
     // Generate unique field ID
-   const fieldId = new mongoose.Types.ObjectId()
+    const fieldId = new mongoose.Types.ObjectId();
 
     // Create field object
     const newField = {
-  id: fieldId.toString(), // Store as string for easy matching in frontend
-  type,
-  question,
-  options: options || [],
-  required: !!required,
-  order: order || 1
-};
+      id: fieldId.toString(),
+      type,
+      question,
+      options: options || [],
+      required: !!required,
+      order: order || 1
+    };
 
     // Find or create JobField document
     let jobField = await JobField.findOne({ jobId });
@@ -73,22 +66,36 @@ exports.addJobField = async (req, res, next) => {
       });
     }
 
-    await createAuditLog({
-      user: req.user._id,
-      action: 'FIELD_ADDED',
-      resource: 'JobField',
-      resourceId: jobField._id,
-      ipAddress: req.auditMetadata?.ipAddress,
-      userAgent: req.auditMetadata?.userAgent,
-      details: {
-        jobTitle: jobExists.title,
-        fieldQuestion: question
-      },
-      severity: 'low'
-    });
+    // ✨ UPDATE: Set hasField to true when first field is added
+    if (!job.hasField) {
+      job.hasField = true;
+      await job.save();
+      console.log(`✅ Job ${jobId} now has fields (hasField set to true)`);
+    }
+
+    // Create audit log (if available)
+    try {
+      await createAuditLog({
+        user: req.user._id,
+        action: 'FIELD_ADDED',
+        resource: 'JobField',
+        resourceId: jobField._id,
+        ipAddress: req.auditMetadata?.ipAddress,
+        userAgent: req.auditMetadata?.userAgent,
+        details: {
+          jobTitle: job.title,
+          fieldQuestion: question,
+          fieldType: type
+        },
+        severity: 'low'
+      });
+    } catch (auditError) {
+      console.error('Audit log error:', auditError.message);
+    }
 
     return successResponse(res, 201, 'Field added successfully', {
-      fieldId: fieldId
+      fieldId: fieldId.toString(),
+      jobHasField: true
     });
 
   } catch (error) {
@@ -104,8 +111,7 @@ exports.addJobField = async (req, res, next) => {
 exports.reorderFields = async (req, res, next) => {
   try {
     const { jobId } = req.params;
-    // Maps your Postman key "fields" to "orders" variable
-    const { fields: orders } = req.body; 
+    const { fields: orders } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(jobId)) {
       return errorResponse(res, 400, 'Invalid job ID');
@@ -122,29 +128,30 @@ exports.reorderFields = async (req, res, next) => {
 
     // Update order for each field
     orders.forEach(({ id, order }) => {
-      // Use .id() for Mongoose subdocuments
-      const field = jobField.fields.id(id); 
+      const field = jobField.fields.id(id);
       if (field) {
         field.order = order;
       }
     });
 
-    // CRITICAL: Tells Mongoose the array content changed so it actually SAVES
     jobField.markModified('fields');
-
     await jobField.save();
 
-    // Audit Log logic remains the same
-    await createAuditLog({
-      user: req.user._id,
-      action: 'FIELDS_REORDERED',
-      resource: 'JobField',
-      resourceId: jobField._id,
-      ipAddress: req.auditMetadata?.ipAddress,
-      userAgent: req.auditMetadata?.userAgent,
-      details: { ordersCount: orders.length },
-      severity: 'low'
-    });
+    // Create audit log
+    try {
+      await createAuditLog({
+        user: req.user._id,
+        action: 'FIELDS_REORDERED',
+        resource: 'JobField',
+        resourceId: jobField._id,
+        ipAddress: req.auditMetadata?.ipAddress,
+        userAgent: req.auditMetadata?.userAgent,
+        details: { ordersCount: orders.length },
+        severity: 'low'
+      });
+    } catch (auditError) {
+      console.error('Audit log error:', auditError.message);
+    }
 
     return successResponse(res, 200, 'Fields reordered successfully');
 
@@ -152,6 +159,7 @@ exports.reorderFields = async (req, res, next) => {
     next(error);
   }
 };
+
 /**
  * @desc    Update single field
  * @route   PATCH /api/admin/jobs/:jobId/fields/:fieldId
@@ -218,7 +226,20 @@ exports.deleteField = async (req, res, next) => {
     jobField.fields.splice(fieldIndex, 1);
     await jobField.save();
 
-    return successResponse(res, 200, 'Field deleted successfully');
+    // ✨ UPDATE: If no fields left, set hasField to false
+    if (jobField.fields.length === 0) {
+      const job = await Job.findById(jobId);
+      if (job) {
+        job.hasField = false;
+        await job.save();
+        console.log(`⚠️  Job ${jobId} has no fields (hasField set to false)`);
+      }
+    }
+
+    return successResponse(res, 200, 'Field deleted successfully', {
+      remainingFields: jobField.fields.length,
+      jobHasField: jobField.fields.length > 0
+    });
 
   } catch (error) {
     next(error);
@@ -243,6 +264,7 @@ exports.getJobFields = async (req, res, next) => {
     if (!jobField || !jobField.fields || jobField.fields.length === 0) {
       return successResponse(res, 200, 'No fields found', {
         jobId,
+        hasField: false,
         fields: []
       });
     }
@@ -252,6 +274,8 @@ exports.getJobFields = async (req, res, next) => {
 
     return successResponse(res, 200, 'Job fields retrieved successfully', {
       jobId,
+      hasField: true,
+      totalFields: sortedFields.length,
       fields: sortedFields
     });
 
@@ -259,4 +283,3 @@ exports.getJobFields = async (req, res, next) => {
     next(error);
   }
 };
-
