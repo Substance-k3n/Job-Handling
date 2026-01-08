@@ -1,10 +1,39 @@
 const express = require('express');
-const { login, getMe } = require('../controllers/authController');
-const { loginValidator } = require('../validators/authValidator');
+const { register, login, getMe } = require('../controllers/authController');
+const { registerValidator, loginValidator } = require('../validators/authValidator');
 const validateRequest = require('../middleware/validateRequest');
 const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
+
+/**
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Register a new user
+ *     description: Create a new user account. You can later promote this user to admin manually in MongoDB Atlas.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RegisterRequest'
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/LoginResponse'
+ *       400:
+ *         description: Validation error or user already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/register', registerValidator, validateRequest, register);
 
 /**
  * @swagger
