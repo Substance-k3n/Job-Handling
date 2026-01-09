@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const publicJobController = require('../controllers/publicJobController');
 const applicationController = require('../controllers/applicationController');
+const { successResponse, errorResponse } = require('../utils/responseUtils');
 const { upload, uploadToMinio } = require('../config/multer');
 
 /**
@@ -424,7 +425,7 @@ router.get('/jobs/:jobId', publicJobController.getPublicJobById);
  *                       example: 677c1b2c3d4e5f6789abcde0
  *                     cvUrl:
  *                       type: string
-                       nullable: true
+ *                       nullable: true
  *                       description: Public MinIO URL of the uploaded CV (null if no file uploaded)
  *                       example: http://localhost:9000/job-uploads/cv-1736432960000-john_doe_cv.pdf
  *             example:
