@@ -18,7 +18,8 @@ const {
   getAdminJobs,
   getAdminJobById,
   deleteJob,
-  updateJobStatus
+  updateJobStatus,
+  updateJobMetadata
 } = require('../controllers/jobController');
 
 const {
@@ -143,13 +144,62 @@ router.get('/jobs/:jobId', getAdminJobById);
  *             $ref: '#/components/schemas/UpdateJobStatusRequest'
  *     responses:
  *       200:
- *         description: Job status updated successfully
+ *         description: Job status updated successfully with metadata
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/JobStatusUpdateResponse'
  *       400:
  *         description: Invalid status value
  *       404:
  *         description: Job not found
  */
 router.patch('/jobs/:jobId/status', updateJobStatus);
+
+/**
+ * @swagger
+ * /admin/jobs/{jobId}:
+ *   patch:
+ *     tags: [Jobs - Admin]
+ *     summary: Update job metadata (title, description, status, dates)
+ *     description: Update selected metadata fields of a job. If setting status to ACTIVE, the job must already have at least one form field.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Job ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateJobRequest'
+ *           examples:
+ *             fullUpdate:
+ *               summary: Update multiple fields
+ *               value:
+ *                 title: Frontend Developer
+ *                 description: We are hiring a React developer
+ *                 status: INACTIVE
+ *                 validFrom: 2026-01-12T10:00:00Z
+ *                 validTo: 2026-01-14T11:30:00Z
+ *     responses:
+ *       200:
+ *         description: Job updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UpdateJobResponse'
+ *       400:
+ *         description: Validation error (invalid status or date range)
+ *       404:
+ *         description: Job not found
+ */
+router.patch('/jobs/:jobId', updateJobMetadata);
 
 /**
  * @swagger

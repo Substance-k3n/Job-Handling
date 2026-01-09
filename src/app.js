@@ -150,6 +150,25 @@ const swaggerOptions = {
             }
           }
         },
+        JobStatusUpdateResponse: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', example: true },
+            message: { type: 'string', example: 'Job published and live successfully' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', example: '677a1b2c3d4e5f6789abcdef' },
+                previousStatus: { type: 'string', example: 'INACTIVE' },
+                status: { type: 'string', example: 'ACTIVE' },
+                hasField: { type: 'boolean', example: true },
+                validFrom: { type: 'string', format: 'date-time', example: '2026-01-12T10:00:00Z' },
+                validTo: { type: 'string', format: 'date-time', example: '2026-01-31T23:59:59Z' },
+                updatedAt: { type: 'string', format: 'date-time', example: '2026-01-12T10:05:00Z' }
+              }
+            }
+          }
+        },
         UpdateJobStatusRequest: {
           type: 'object',
           required: ['status'],
@@ -158,6 +177,35 @@ const swaggerOptions = {
               type: 'string',
               enum: ['ACTIVE', 'INACTIVE'],
               example: 'ACTIVE'
+            }
+          }
+        },
+        UpdateJobRequest: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', example: 'Frontend Developer' },
+            description: { type: 'string', example: 'We are hiring a React developer' },
+            status: { type: 'string', enum: ['ACTIVE', 'INACTIVE'], example: 'INACTIVE' },
+            validFrom: { type: 'string', format: 'date-time', example: '2026-01-12T10:00:00Z' },
+            validTo: { type: 'string', format: 'date-time', example: '2026-01-14T11:30:00Z' }
+          }
+        },
+        UpdateJobResponse: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', example: true },
+            message: { type: 'string', example: 'Job updated successfully' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', example: '677a1b2c3d4e5f6789abcdef' },
+                title: { type: 'string', example: 'Frontend Developer' },
+                description: { type: 'string', example: 'We are hiring a React developer' },
+                status: { type: 'string', example: 'INACTIVE' },
+                validFrom: { type: 'string', format: 'date-time', example: '2026-01-12T10:00:00Z' },
+                validTo: { type: 'string', format: 'date-time', example: '2026-01-14T11:30:00Z' },
+                updatedAt: { type: 'string', format: 'date-time', example: '2026-01-12T10:05:00Z' }
+              }
             }
           }
         },
