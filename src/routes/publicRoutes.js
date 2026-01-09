@@ -261,6 +261,102 @@ router.get('/jobs/:jobId', publicJobController.getPublicJobById);
 
 /**
  * @swagger
+ * /files/upload:
+ *   post:
+ *     tags: [Applications - Public]
+ *     summary: Upload a file to MinIO and get public URL (generic)
+ *     description: |
+ *       Simple utility endpoint to upload **any single file** to MinIO and get back
+ *       a public URL. This can be reused from other sites/frontends that just need
+ *       a MinIO-hosted file URL.
+ *
+ *       **Notes:**
+ *       - Field name must be `file`
+ *       - Uses the same MinIO bucket and config as job applications (`job-uploads`)
+ *       - Accepted formats are controlled by backend multer config (PDF, DOC, DOCX)
+ *       - Max size is 5MB
+ *
+ *       **NO AUTHENTICATION REQUIRED** by default.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: File to upload
+ *           examples:
+ *             sampleFile:
+ *               summary: Example file upload
+ *               value:
+ *                 file: (binary file)
+ *     responses:
+ *       201:
+ *         description: File uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: File uploaded successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     fileName:
+ *                       type: string
+ *                       example: my_cv.pdf
+ *                     bucket:
+ *                       type: string
+ *                       example: job-uploads
+ *                     objectName:
+ *                       type: string
+ *                       example: cv-1736432960000-my_cv.pdf
+ *                     url:
+ *                       type: string
+ *                       description: Public MinIO URL to access the file
+ *                       example: http://localhost:9000/job-uploads/cv-1736432960000-my_cv.pdf
+ *       400:
+ *         description: No file provided or upload failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: No file uploaded or upload failed
+ */
+router.post(
+  '/files/upload',
+  upload.single('file'),
+  uploadToMinio,
+  (req, res) => {
+    if (!req.file || !req.file.minioUrl) {
+      return errorResponse(res, 400, 'No file uploaded or upload failed');
+    }
+
+    return successResponse(res, 201, 'File uploaded successfully', {
+      fileName: req.file.originalname,
+      bucket: req.file.minioBucket,
+      objectName: req.file.minioFileName,
+      url: req.file.minioUrl
+    });
+  }
+);
+
+/**
+ * @swagger
  * /jobs/{jobId}/apply:
  *   post:
  *     tags: [Applications - Public]
