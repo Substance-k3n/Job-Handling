@@ -414,9 +414,25 @@ router.get('/jobs/:jobId', publicJobController.getPublicJobById);
  *                 message:
  *                   type: string
  *                   example: Application submitted successfully
+ *                 data:
+ *                   type: object
+ *                   nullable: true
+ *                   properties:
+ *                     applicationId:
+ *                       type: string
+ *                       description: ID of the created application
+ *                       example: 677c1b2c3d4e5f6789abcde0
+ *                     cvUrl:
+ *                       type: string
+                       nullable: true
+ *                       description: Public MinIO URL of the uploaded CV (null if no file uploaded)
+ *                       example: http://localhost:9000/job-uploads/cv-1736432960000-john_doe_cv.pdf
  *             example:
  *               success: true
  *               message: Application submitted successfully
+ *               data:
+ *                 applicationId: 677c1b2c3d4e5f6789abcde0
+ *                 cvUrl: http://localhost:9000/job-uploads/cv-1736432960000-john_doe_cv.pdf
  *       400:
  *         description: Bad request - validation error or duplicate application
  *         content:

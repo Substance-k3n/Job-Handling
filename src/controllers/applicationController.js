@@ -63,7 +63,10 @@ exports.applyForJob = async (req, res, next) => {
       // Don't fail the application if email fails
     }
 
-    return successResponse(res, 201, 'Application submitted successfully');
+    return successResponse(res, 201, 'Application submitted successfully', {
+      applicationId: application._id,
+      cvUrl: application.cvUrl
+    });
 
   } catch (error) {
     next(error);
