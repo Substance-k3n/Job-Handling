@@ -12,37 +12,89 @@ const jobSchema = new mongoose.Schema({
     required: [true, 'Job description is required'],
     trim: true
   },
+  
+  // New metadata fields
+  location: {
+    type: String,
+    required: [true, 'Location is required'],
+    trim: true,
+    default: 'Addis Ababa, Ethiopia'
+  },
+  type: {
+    type: String,
+    enum: ['full-time', 'part-time', 'contract', 'internship'],
+    required: [true, 'Job type is required'],
+    default: 'full-time'
+  },
+  work_mode: {
+    type: String,
+    enum: ['remote', 'onsite', 'hybrid'],
+    required: [true, 'Work mode is required'],
+    default: 'onsite'
+  },
+  key_responsibilities: {
+    type: [String],
+    default: [],
+    validate: {
+      validator: function(v) {
+        return Array.isArray(v);
+      },
+      message: 'Key responsibilities must be an array of strings'
+    }
+  },
+  what_we_offer: {
+    type: [String],
+    default: [],
+    validate: {
+      validator: function(v) {
+        return Array.isArray(v);
+      },
+      message: 'What we offer must be an array of strings'
+    }
+  },
+  requirements: {
+    type: [String],
+    default: [],
+    validate: {
+      validator: function(v) {
+        return Array.isArray(v);
+      },
+      message: 'Requirements must be an array of strings'
+    }
+  },
+  
   status: {
     type: String,
     enum: ['ACTIVE', 'INACTIVE'],
     default: 'INACTIVE',
     index: true
   },
-  validFrom: {
+  
+  // Removed validFrom, only deadline now
+  deadline: {
     type: Date,
-    required: true,
-    default: Date.now
+    required: [function() { return this.isNew; }, 'Deadline is required']
   },
-  validTo: {
-    type: Date,
-    // Required when creating a new job, but do not
-    // block updates for legacy jobs that may not
-    // have this field set yet.
-    required: [function() { return this.isNew; }, 'Valid to date is required']
+  
+  // New flag to track if deadline has passed
+  isPastDeadline: {
+    type: Boolean,
+    default: false,
+    index: true,
+    description: 'True if current time > deadline. Used to filter ended jobs while keeping responses accessible.'
   },
+  
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    // Required on creation, but allow saving existing
-    // documents that were created before this field
-    // was introduced.
     required: [function() { return this.isNew; }, 'Created by user is required']
   },
+  
   hasField: {
     type: Boolean,
     default: false,
     index: true,
-    description: 'Indicates if job has form fields added. False when created, true after first field is added.'
+    description: 'Indicates if job has form fields added'
   }
 }, {
   timestamps: true
@@ -52,30 +104,53 @@ const jobSchema = new mongoose.Schema({
  * Method to check if job is visible to public users
  * A job is visible if:
  * - status is ACTIVE
- * - current time is >= validFrom
- * - current time is <= validTo
+ * - current time <= deadline
  */
 jobSchema.methods.checkVisibility = function() {
   const now = new Date();
   return (
     this.status === 'ACTIVE' &&
-    now >= this.validFrom &&
-    now <= this.validTo
+    now <= this.deadline
   );
 };
 
 /**
  * Method to check if job is ready to be published
- * A job is ready if it has at least one field
  */
 jobSchema.methods.isReadyToPublish = function() {
   return this.hasField === true;
 };
 
 /**
+ * Method to update isPastDeadline flag
+ * Call this to check if deadline has passed
+ */
+jobSchema.methods.updateDeadlineStatus = function() {
+  const now = new Date();
+  this.isPastDeadline = now > this.deadline;
+  return this.isPastDeadline;
+};
+
+/**
+ * Pre-save hook to automatically update isPastDeadline
+ */
+jobSchema.pre('save', function(next) {
+  if (this.deadline) {
+    const now = new Date();
+    this.isPastDeadline = now > this.deadline;
+  }
+  next();
+});
+
+/**
  * Index for efficient querying of active jobs
  */
-jobSchema.index({ status: 1, validFrom: 1, validTo: 1 });
+jobSchema.index({ status: 1, deadline: 1 });
+
+/**
+ * Index for filtering by deadline status
+ */
+jobSchema.index({ isPastDeadline: 1, status: 1 });
 
 /**
  * Index for filtering jobs by hasField status

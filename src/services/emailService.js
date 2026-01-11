@@ -59,9 +59,20 @@ exports.sendApplicationConfirmation = async (toEmail, applicantName, jobTitle) =
 };
 
 /**
- * Send interview invitation email
+ * Send interview invitation email - NEW TEMPLATE
+ * No longer generates Google Meet link automatically
  */
-exports.sendInterviewInvitation = async (toEmail, applicantName, jobTitle, date, time, meetLink) => {
+exports.sendInterviewInvitation = async (
+  toEmail, 
+  applicantName, 
+  role,
+  interviewDate, 
+  interviewTime, 
+  interviewLocation,
+  customMessage,
+  senderName,
+  senderTitle
+) => {
   if (!isEmailConfigured()) {
     console.log('📧 [SKIPPED] Interview invitation email (email not configured)');
     return { skipped: true, reason: 'Email not configured' };
@@ -71,22 +82,20 @@ exports.sendInterviewInvitation = async (toEmail, applicantName, jobTitle, date,
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: toEmail,
-      subject: `Interview Invitation - ${jobTitle}`,
+      subject: `Interview Invitation for ${role}`,
       html: `
-        <h2>Interview Invitation</h2>
-        <p>Dear ${applicantName},</p>
-        <p>We are pleased to invite you for an interview for the position of <strong>${jobTitle}</strong>.</p>
+        <h2>Interview Invitation for ${role}</h2>
+        <p>Hi ${applicantName},</p>
+        <p>Thank you for applying for the <strong>${role}</strong> position at FaydaTech. We'd like to invite you for an interview.</p>
         <br>
-        <p><strong>Interview Details:</strong></p>
-        <ul>
-          <li>Date: ${date}</li>
-          <li>Time: ${time}</li>
-          <li>Meeting Link: <a href="${meetLink}">${meetLink}</a></li>
-        </ul>
+        <p><strong>Date:</strong> ${interviewDate}</p>
+        <p><strong>Time:</strong> ${interviewTime}</p>
+        <p><strong>Location/Link:</strong> ${interviewLocation}</p>
         <br>
-        <p>Please join the meeting at the scheduled time.</p>
+        ${customMessage ? `<p>${customMessage}</p><br>` : ''}
+        <p>Please confirm your availability by replying to this email.</p>
         <br>
-        <p>Best regards,<br>Hiring Team</p>
+        <p>Best regards,<br>${senderName}<br>${senderTitle}</p>
       `
     };
 

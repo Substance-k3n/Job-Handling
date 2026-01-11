@@ -5,6 +5,7 @@ const { successResponse, errorResponse } = require('../utils/responseUtils');
 /**
  * STEP 1: Fetch Available Jobs (Public)
  * GET /jobs
+ * Returns jobs that are ACTIVE and deadline has not passed
  */
 exports.getPublicJobs = async (req, res, next) => {
   try {
@@ -12,18 +13,19 @@ exports.getPublicJobs = async (req, res, next) => {
 
     const jobs = await Job.find({
       status: 'ACTIVE',
-      validFrom: { $lte: now },
-      validTo: { $gte: now }
+      deadline: { $gte: now }
     })
-      .select('title description validFrom validTo')
+      .select('title description location type work_mode key_responsibilities what_we_offer requirements deadline')
       .sort({ createdAt: -1 });
 
     const formattedJobs = jobs.map(job => ({
       id: job._id,
       title: job.title,
       shortDescription: job.description.substring(0, 100) + (job.description.length > 100 ? '...' : ''),
-      validFrom: job.validFrom,
-      validTo: job.validTo
+      location: job.location,
+      type: job.type,
+      work_mode: job.work_mode,
+      deadline: job.deadline
     }));
 
     return successResponse(res, 200, 'Jobs retrieved successfully', formattedJobs);
@@ -36,6 +38,7 @@ exports.getPublicJobs = async (req, res, next) => {
 /**
  * STEP 2: Fetch Single Job + Form Schema (Public)
  * GET /jobs/:jobId
+ * Returns complete job details with all metadata and form fields
  */
 exports.getPublicJobById = async (req, res, next) => {
   try {
@@ -59,6 +62,13 @@ exports.getPublicJobById = async (req, res, next) => {
       id: job._id,
       title: job.title,
       description: job.description,
+      location: job.location,
+      type: job.type,
+      work_mode: job.work_mode,
+      key_responsibilities: job.key_responsibilities,
+      what_we_offer: job.what_we_offer,
+      requirements: job.requirements,
+      deadline: job.deadline,
       fields
     });
 

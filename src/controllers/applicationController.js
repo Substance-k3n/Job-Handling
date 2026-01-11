@@ -2,18 +2,17 @@ const Application = require('../models/Application');
 const Job = require('../models/Job');
 const JobField = require('../models/JobField');
 const { successResponse, errorResponse } = require('../utils/responseUtils');
-const { sendApplicationConfirmation } = require('../services/emailService');
-const { createGoogleMeetEvent } = require('../services/googleCalendarService');
+const { sendApplicationConfirmation, sendInterviewInvitation, sendAcceptanceEmail } = require('../services/emailService');
 
 /**
- * STEP 3: User Applies for Job
+ * STEP 3: User Applies for Job - WITH VALIDATION
  * POST /jobs/:jobId/apply
  */
 exports.applyForJob = async (req, res, next) => {
   try {
     const { jobId } = req.params;
 
-    // Parse stringified JSON from form-data
+    // Parse applicant and answers from form-data
     const applicant = typeof req.body.applicant === 'string' 
       ? JSON.parse(req.body.applicant) 
       : req.body.applicant;
@@ -39,7 +38,35 @@ exports.applyForJob = async (req, res, next) => {
       return errorResponse(res, 400, 'You have already applied for this job.', 'DUPLICATE_APPLICATION');
     }
 
-    // Insert MinIO URL into the correct answer field
+    // Get job fields for validation
+    const jobFields = await JobField.findOne({ jobId });
+    if (!jobFields || !jobFields.fields || jobFields.fields.length === 0) {
+      return errorResponse(res, 400, 'Job form fields not found');
+    }
+
+    // Validate required fields
+    const requiredFields = jobFields.fields.filter(f => f.required);
+    const missingFields = [];
+
+    for (const reqField of requiredFields) {
+      const answer = answers.find(a => a.fieldId === reqField.id);
+      
+      if (!answer || !answer.value || 
+          (Array.isArray(answer.value) && answer.value.length === 0) ||
+          (typeof answer.value === 'string' && answer.value.trim() === '')) {
+        missingFields.push(reqField.question);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      return errorResponse(
+        res, 
+        400, 
+        `The following required fields are missing: ${missingFields.join(', ')}`
+      );
+    }
+
+    // Insert MinIO URL for CV if uploaded
     if (req.file && req.file.minioUrl) {
       const fileFieldId = req.body.fileFieldId; 
       answers = answers.map(ans => 
@@ -60,13 +87,9 @@ exports.applyForJob = async (req, res, next) => {
       await sendApplicationConfirmation(applicant.email, applicant.name, job.title);
     } catch (emailError) {
       console.error('Email notification failed:', emailError.message);
-      // Don't fail the application if email fails
     }
 
-    return successResponse(res, 201, 'Application submitted successfully', {
-      applicationId: application._id,
-      cvUrl: application.cvUrl
-    });
+    return successResponse(res, 201, 'Application submitted successfully');
 
   } catch (error) {
     next(error);
@@ -75,14 +98,13 @@ exports.applyForJob = async (req, res, next) => {
 
 /**
  * STEP 8: Fetch Responses for a Job (Admin) - WITH FILTERING
- * GET /admin/jobs/:jobId/responses
- * Query params: ?isSaved=true&isInvited=false&isAccepted=true
+ * GET /admin/jobs/:jobId/responses?isSaved=true&isInvited=false&isAccepted=true
  */
 exports.getJobResponses = async (req, res, next) => {
   try {
     const { jobId } = req.params;
 
-    // Build filter object based on query parameters
+    // Build filter object
     const filter = { jobId };
 
     // Add optional filters
@@ -193,53 +215,59 @@ exports.toggleSaveResponse = async (req, res, next) => {
 };
 
 /**
- * STEP 11: Send Interview Email (Admin) - PHASE 2
+ * STEP 11: Send Interview Email (Admin) - NEW FORMAT
  * POST /admin/responses/:responseId/send-invitation
  */
 exports.sendInterviewInvitation = async (req, res, next) => {
   try {
     const { responseId } = req.params;
-    const { interviewDate, interviewTime } = req.body;
+    const { 
+      applicant_name,
+      role,
+      interview_date,
+      interview_time,
+      interview_location,
+      custom_message,
+      sender_name,
+      sender_title
+    } = req.body;
+
+    // Validate required fields
+    if (!applicant_name || !role || !interview_date || !interview_time || 
+        !interview_location || !sender_name || !sender_title) {
+      return errorResponse(res, 400, 'All interview details are required: applicant_name, role, interview_date, interview_time, interview_location, sender_name, sender_title');
+    }
 
     const response = await Application.findById(responseId).populate('jobId', 'title');
     if (!response) {
       return errorResponse(res, 404, 'Response not found');
     }
 
-    // PHASE 2: Create Google Calendar event & get Meet link
-    let meetLink = 'https://meet.google.com/placeholder';
-    try {
-      meetLink = await createGoogleMeetEvent({
-        summary: `Interview for ${response.jobId.title}`,
-        description: `Interview with ${response.applicant.name}`,
-        attendees: [response.applicant.email],
-        date: interviewDate,
-        time: interviewTime
-      });
-    } catch (calendarError) {
-      console.error('Google Calendar error:', calendarError.message);
-      // Continue even if calendar fails
-    }
-
-    // Update application
+    // Update application with interview details
     response.isInvited = true;
     response.interviewDetails = {
-      date: new Date(interviewDate),
-      time: interviewTime,
-      meetLink
+      date: new Date(interview_date),
+      time: interview_time,
+      meetLink: interview_location,
+      role,
+      custom_message: custom_message || '',
+      sender_name,
+      sender_title
     };
     await response.save();
 
-    // PHASE 2: Send interview email
+    // Send interview email with new template
     try {
-      const { sendInterviewInvitation } = require('../services/emailService');
       await sendInterviewInvitation(
         response.applicant.email,
-        response.applicant.name,
-        response.jobId.title,
-        interviewDate,
-        interviewTime,
-        meetLink
+        applicant_name,
+        role,
+        interview_date,
+        interview_time,
+        interview_location,
+        custom_message || '',
+        sender_name,
+        sender_title
       );
     } catch (emailError) {
       console.error('Email error:', emailError.message);
@@ -249,7 +277,16 @@ exports.sendInterviewInvitation = async (req, res, next) => {
     return successResponse(res, 200, 'Interview invitation sent successfully', {
       responseId: response._id,
       isInvited: response.isInvited,
-      interviewDetails: response.interviewDetails
+      interviewDetails: {
+        applicant_name,
+        role,
+        interview_date,
+        interview_time,
+        interview_location,
+        custom_message: custom_message || '',
+        sender_name,
+        sender_title
+      }
     });
 
   } catch (error) {
@@ -259,7 +296,7 @@ exports.sendInterviewInvitation = async (req, res, next) => {
 };
 
 /**
- * STEP 12: Send Acceptance Email (Admin) - PHASE 2
+ * STEP 12: Send Acceptance Email (Admin)
  * POST /admin/responses/:responseId/send-acceptance
  */
 exports.sendAcceptanceEmail = async (req, res, next) => {
@@ -271,13 +308,11 @@ exports.sendAcceptanceEmail = async (req, res, next) => {
       return errorResponse(res, 404, 'Response not found');
     }
 
-    // Update application
     response.isAccepted = true;
     await response.save();
 
-    // PHASE 2: Send acceptance email
+    // Send acceptance email
     try {
-      const { sendAcceptanceEmail } = require('../services/emailService');
       await sendAcceptanceEmail(
         response.applicant.email,
         response.applicant.name,
@@ -285,7 +320,6 @@ exports.sendAcceptanceEmail = async (req, res, next) => {
       );
     } catch (emailError) {
       console.error('Email error:', emailError.message);
-      // Don't fail if email fails
     }
 
     return successResponse(res, 200, 'Acceptance Email sent successfully', {
