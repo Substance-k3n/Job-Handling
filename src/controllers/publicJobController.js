@@ -53,11 +53,6 @@ exports.getPublicJobById = async (req, res, next) => {
       return errorResponse(res, 403, 'This job is no longer available');
     }
 
-    const jobFields = await JobField.findOne({ jobId });
-
-    const fields = jobFields && jobFields.fields ? 
-      jobFields.fields.sort((a, b) => a.order - b.order) : [];
-
     return successResponse(res, 200, 'Job retrieved successfully', {
       id: job._id,
       title: job.title,
@@ -68,9 +63,37 @@ exports.getPublicJobById = async (req, res, next) => {
       key_responsibilities: job.key_responsibilities,
       what_we_offer: job.what_we_offer,
       requirements: job.requirements,
-      deadline: job.deadline,
-      fields
+      deadline: job.deadline
     });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * STEP 2b: Fetch only the application form fields (Public)
+ * GET /jobs/:jobId/form
+ * Returns just the form schema to render on Apply
+ */
+exports.getPublicJobForm = async (req, res, next) => {
+  try {
+    const { jobId } = req.params;
+
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return errorResponse(res, 404, 'Job not found');
+    }
+
+    if (!job.checkVisibility()) {
+      return errorResponse(res, 403, 'This job is no longer available');
+    }
+
+    const jobFields = await JobField.findOne({ jobId });
+    const fields = jobFields && jobFields.fields ?
+      jobFields.fields.sort((a, b) => a.order - b.order) : [];
+
+    return successResponse(res, 200, 'Form schema retrieved successfully', { fields });
 
   } catch (error) {
     next(error);

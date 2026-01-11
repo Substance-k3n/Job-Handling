@@ -39,6 +39,7 @@ const jobFieldSchema = new mongoose.Schema({
   timestamps: true
 });
 
-jobFieldSchema.index({ jobId: 1 });
+// Note: `unique: true` on jobId already creates an index.
+// Avoid declaring a duplicate index to prevent Mongoose warnings.
 
 module.exports = mongoose.model('JobField', jobFieldSchema);

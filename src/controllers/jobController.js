@@ -9,20 +9,25 @@ const { createAuditLog } = require('../utils/auditLogger');
  */
 exports.createJob = async (req, res, next) => {
   try {
-    const { title, description, validFrom, validTo } = req.body;
+    const { title, description, location, type, work_mode, key_responsibilities, what_we_offer, requirements, deadline } = req.body;
 
-    if (!title || !description || !validTo) {
-      return errorResponse(res, 400, 'Title, description, and validTo are required');
+    if (!title || !description || !deadline) {
+      return errorResponse(res, 400, 'Title, description, and deadline are required');
     }
 
     const job = await Job.create({
       title,
       description,
+      location,
+      type,
+      work_mode,
+      key_responsibilities,
+      what_we_offer,
+      requirements,
+      deadline,
       status: 'INACTIVE',
-      validFrom: validFrom || new Date(),
-      validTo,
       createdBy: req.user._id,
-      hasField: false // New jobs have no fields by default
+      hasField: false
     });
 
     return successResponse(res, 201, 'Job created successfully', {
@@ -57,7 +62,7 @@ exports.getAdminJobs = async (req, res, next) => {
 
     const jobs = await Job.find(filter)
       .sort({ createdAt: -1 })
-      .select('title description status validFrom validTo hasField createdAt updatedAt');
+      .select('title description status location type work_mode deadline hasField createdAt updatedAt');
 
     return successResponse(res, 200, 'Jobs retrieved successfully', {
       total: jobs.length,
@@ -92,9 +97,14 @@ exports.getAdminJobById = async (req, res, next) => {
       id: job._id,
       title: job.title,
       description: job.description,
+      location: job.location,
+      type: job.type,
+      work_mode: job.work_mode,
+      key_responsibilities: job.key_responsibilities,
+      what_we_offer: job.what_we_offer,
+      requirements: job.requirements,
       status: job.status,
-      validFrom: job.validFrom,
-      validTo: job.validTo,
+      deadline: job.deadline,
       hasField: job.hasField,
       isReadyToPublish: job.isReadyToPublish(),
       fields: jobFields ? jobFields.fields.sort((a, b) => a.order - b.order) : []
@@ -130,11 +140,6 @@ exports.updateJobStatus = async (req, res, next) => {
 
     const previousStatus = job.status;
 
-    // UPDATE: If status is ACTIVE, set validFrom to current date/time
-    if (status === 'ACTIVE') {
-      job.validFrom = new Date(); 
-    }
-
     job.status = status;
     await job.save();
 
@@ -157,8 +162,7 @@ exports.updateJobStatus = async (req, res, next) => {
         details: {
           previousStatus,
           newStatus: job.status,
-          validFrom: job.validFrom,
-          validTo: job.validTo
+          deadline: job.deadline
         },
         severity: 'medium'
       });
@@ -166,13 +170,12 @@ exports.updateJobStatus = async (req, res, next) => {
       console.error('Job status audit log error:', auditError.message);
     }
 
-    return successResponse(res, 200, 'Job published and live successfully', {
+    return successResponse(res, 200, 'Job status updated successfully', {
       id: job._id,
       previousStatus,
       status: job.status,
       hasField: job.hasField,
-      validFrom: job.validFrom,
-      validTo: job.validTo,
+      deadline: job.deadline,
       updatedAt: job.updatedAt
     });
 
@@ -206,12 +209,12 @@ exports.deleteJob = async (req, res, next) => {
 /**
  * Update Job Metadata (Admin)
  * PATCH /admin/jobs/:jobId
- * Updates only metadata fields: title, description, status, validFrom, validTo
+ * Updates metadata fields: title, description, location, type, work_mode, key_responsibilities, what_we_offer, requirements, deadline, status
  */
 exports.updateJobMetadata = async (req, res, next) => {
   try {
     const { jobId } = req.params;
-    const { title, description, status, validFrom, validTo } = req.body;
+    const { title, description, status, location, type, work_mode, key_responsibilities, what_we_offer, requirements, deadline } = req.body;
 
     const job = await Job.findById(jobId);
     if (!job) {
@@ -233,14 +236,21 @@ exports.updateJobMetadata = async (req, res, next) => {
     if (title !== undefined) updates.title = title;
     if (description !== undefined) updates.description = description;
     if (status !== undefined) updates.status = String(status).toUpperCase();
-    if (validFrom !== undefined) updates.validFrom = new Date(validFrom);
-    if (validTo !== undefined) updates.validTo = new Date(validTo);
-
-    // Validate date range if both provided (or if existing + provided contradict)
-    const nextValidFrom = updates.validFrom || job.validFrom;
-    const nextValidTo = updates.validTo || job.validTo;
-    if (nextValidFrom && nextValidTo && nextValidFrom > nextValidTo) {
-      return errorResponse(res, 400, 'validFrom must be earlier than or equal to validTo');
+    if (location !== undefined) updates.location = location;
+    if (type !== undefined) updates.type = type;
+    if (work_mode !== undefined) updates.work_mode = work_mode;
+    if (key_responsibilities !== undefined) updates.key_responsibilities = key_responsibilities;
+    if (what_we_offer !== undefined) updates.what_we_offer = what_we_offer;
+    if (requirements !== undefined) updates.requirements = requirements;
+    if (deadline !== undefined) {
+      const dl = new Date(deadline);
+      if (isNaN(dl.getTime())) {
+        return errorResponse(res, 400, 'Invalid deadline date');
+      }
+      if (dl < new Date()) {
+        return errorResponse(res, 400, 'Deadline must be in the future');
+      }
+      updates.deadline = dl;
     }
 
     Object.assign(job, updates);
@@ -250,9 +260,14 @@ exports.updateJobMetadata = async (req, res, next) => {
       id: job._id,
       title: job.title,
       description: job.description,
+      location: job.location,
+      type: job.type,
+      work_mode: job.work_mode,
+      key_responsibilities: job.key_responsibilities,
+      what_we_offer: job.what_we_offer,
+      requirements: job.requirements,
       status: job.status,
-      validFrom: job.validFrom,
-      validTo: job.validTo,
+      deadline: job.deadline,
       updatedAt: job.updatedAt
     });
 

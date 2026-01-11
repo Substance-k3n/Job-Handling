@@ -146,7 +146,53 @@ router.get('/jobs', publicJobController.getPublicJobs);
  *                       example: Frontend Developer
  *                     description:
  *                       type: string
- *                       example: We are hiring a React developer with 3+ years of experience. Must know TypeScript, React hooks, and state management. You will work on building scalable web applications.
+ *                       example: We are looking for a skilled Software Engineer to join our growing development team. The ideal candidate will have strong problem-solving skills and experience in modern web technologies.
+ *                     location:
+ *                       type: string
+ *                       example: Addis Ababa, Ethiopia
+ *                     type:
+ *                       type: string
+ *                       example: full-time
+ *                     work_mode:
+ *                       type: string
+ *                       example: hybrid
+ *                     key_responsibilities:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: [
+ *                         "Develop and maintain web applications",
+ *                         "Collaborate with cross-functional teams",
+ *                         "Write clean, scalable code",
+ *                         "Participate in code reviews",
+ *                         "Troubleshoot and debug issues"
+ *                       ]
+ *                     what_we_offer:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: [
+ *                         "Competitive salary",
+ *                         "Health and dental insurance",
+ *                         "Remote work flexibility",
+ *                         "Professional development opportunities",
+ *                         "Generous vacation policy"
+ *                       ]
+ *                     requirements:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: [
+ *                         "Bachelor's degree in Computer Science or related field",
+ *                         "3+ years of experience in software development",
+ *                         "Proficiency in JavaScript, React, and Node.js",
+ *                         "Strong problem-solving skills",
+ *                         "Excellent communication and teamwork abilities"
+ *                       ]
+ *                     deadline:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2026-02-15T17:00:00Z"
  *                     fields:
  *                       type: array
  *                       description: Form fields sorted by order property
@@ -188,45 +234,33 @@ router.get('/jobs', publicJobController.getPublicJobs);
  *                   message: Job retrieved successfully
  *                   data:
  *                     id: 677a1b2c3d4e5f6789abcdef
- *                     title: Frontend Developer
- *                     description: We are hiring a React developer with 3+ years of experience. Must know TypeScript, React hooks, and state management.
- *                     fields:
- *                       - id: 677b2c3d4e5f6789abcdef01
- *                         type: short_answer
- *                         question: What is your full name?
- *                         options: []
- *                         required: true
- *                         order: 1
- *                       - id: 677b2c3d4e5f6789abcdef02
- *                         type: file
- *                         question: Upload your CV/Resume
- *                         options: []
- *                         required: true
- *                         order: 2
- *                       - id: 677b2c3d4e5f6789abcdef03
- *                         type: multiple_choice
- *                         question: Years of Experience
- *                         options: ["0-1", "2-3", "4-5", "5+"]
- *                         required: true
- *                         order: 3
- *                       - id: 677b2c3d4e5f6789abcdef04
- *                         type: paragraph
- *                         question: Why do you want to join our company?
- *                         options: []
- *                         required: false
- *                         order: 4
- *                       - id: 677b2c3d4e5f6789abcdef05
- *                         type: checkboxes
- *                         question: Which technologies do you know?
- *                         options: ["React", "Node.js", "TypeScript", "MongoDB", "PostgreSQL"]
- *                         required: false
- *                         order: 5
- *                       - id: 677b2c3d4e5f6789abcdef06
- *                         type: date
- *                         question: When can you start?
- *                         options: []
- *                         required: true
- *                         order: 6
+ *                     title: Software Engineer
+ *                     description: We are looking for a skilled Software Engineer to join our growing development team. The ideal candidate will have strong problem-solving skills and experience in modern web technologies.
+ *                     location: Addis Ababa, Ethiopia
+ *                     type: full-time
+ *                     work_mode: hybrid
+ *                     key_responsibilities: [
+ *                       "Develop and maintain web applications",
+ *                       "Collaborate with cross-functional teams",
+ *                       "Write clean, scalable code",
+ *                       "Participate in code reviews",
+ *                       "Troubleshoot and debug issues"
+ *                     ]
+ *                     what_we_offer: [
+ *                       "Competitive salary",
+ *                       "Health and dental insurance",
+ *                       "Remote work flexibility",
+ *                       "Professional development opportunities",
+ *                       "Generous vacation policy"
+ *                     ]
+ *                     requirements: [
+ *                       "Bachelor's degree in Computer Science or related field",
+ *                       "3+ years of experience in software development",
+ *                       "Proficiency in JavaScript, React, and Node.js",
+ *                       "Strong problem-solving skills",
+ *                       "Excellent communication and teamwork abilities"
+ *                     ]
+ *                     deadline: "2026-02-15T17:00:00Z"
  *       403:
  *         description: Job is no longer available (INACTIVE or outside date range)
  *         content:
@@ -258,6 +292,66 @@ router.get('/jobs', publicJobController.getPublicJobs);
  *                   example: Job not found
  */
 router.get('/jobs/:jobId', publicJobController.getPublicJobById);
+
+/**
+ * @swagger
+ * /jobs/{jobId}/field:
+ *   get:
+ *     tags: [Jobs - Public]
+ *     summary: STEP 2b - Fetch only application form fields (PUBLIC - No Authentication)
+ *     description: |
+ *       Fetch only the application form schema for a job. Use this after the user clicks "Apply" to render the fields.
+ *       Fields are sorted by the `order` property.
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Job ID (MongoDB ObjectId)
+ *     responses:
+ *       200:
+ *         description: Form schema retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Form schema retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     fields:
+ *                       type: array
+ *                       description: Form fields sorted by `order`
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           type:
+ *                             type: string
+ *                           question:
+ *                             type: string
+ *                           options:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                           required:
+ *                             type: boolean
+ *                           order:
+ *                             type: number
+ *       403:
+ *         description: Job is no longer available
+ *       404:
+ *         description: Job not found
+ */
+router.get('/jobs/:jobId/field', publicJobController.getPublicJobForm);
 
 /**
  * @swagger

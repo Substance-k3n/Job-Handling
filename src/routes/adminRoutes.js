@@ -48,7 +48,7 @@ router.use(captureMetadata);
  *   post:
  *     tags: [Jobs - Admin]
  *     summary: STEP 2 - Create a new job
- *     description: Create job metadata. Job is created as INACTIVE by default.
+ *     description: Create job metadata using the new format. Job is created as INACTIVE by default.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -57,6 +57,31 @@ router.use(captureMetadata);
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/CreateJobRequest'
+ *           example:
+ *             title: Software Engineer
+ *             description: We are looking for a skilled Software Engineer to join our growing development team. The ideal candidate will have strong problem-solving skills and experience in modern web technologies.
+ *             location: Addis Ababa, Ethiopia
+ *             type: full-time
+ *             work_mode: hybrid
+ *             key_responsibilities:
+ *               - Develop and maintain web applications
+ *               - Collaborate with cross-functional teams
+ *               - Write clean, scalable code
+ *               - Participate in code reviews
+ *               - Troubleshoot and debug issues
+ *             what_we_offer:
+ *               - Competitive salary
+ *               - Health and dental insurance
+ *               - Remote work flexibility
+ *               - Professional development opportunities
+ *               - Generous vacation policy
+ *             requirements:
+ *               - Bachelor's degree in Computer Science or related field
+ *               - 3+ years of experience in software development
+ *               - Proficiency in JavaScript, React, and Node.js
+ *               - Strong problem-solving skills
+ *               - Excellent communication and teamwork abilities
+ *             deadline: "2026-02-15T17:00:00Z"
  *     responses:
  *       201:
  *         description: Job created successfully
@@ -126,7 +151,6 @@ router.get('/jobs/:jobId', getAdminJobById);
  *     summary: STEP 4 - Publish/Unpublish job
  *     description: |
  *       Change job status to ACTIVE or INACTIVE.
- *       When set to ACTIVE, validFrom is automatically updated to current time.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -161,8 +185,8 @@ router.patch('/jobs/:jobId/status', updateJobStatus);
  * /admin/jobs/{jobId}:
  *   patch:
  *     tags: [Jobs - Admin]
- *     summary: Update job metadata (title, description, status, dates)
- *     description: Update selected metadata fields of a job. If setting status to ACTIVE, the job must already have at least one form field.
+ *     summary: Update job metadata (new format)
+ *     description: Update metadata fields of a job (title, description, location, type, work_mode, key_responsibilities, what_we_offer, requirements, deadline, status). If setting status to ACTIVE, the job must already have at least one form field.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -182,11 +206,21 @@ router.patch('/jobs/:jobId/status', updateJobStatus);
  *             fullUpdate:
  *               summary: Update multiple fields
  *               value:
- *                 title: Frontend Developer
- *                 description: We are hiring a React developer
- *                 status: INACTIVE
- *                 validFrom: 2026-01-12T10:00:00Z
- *                 validTo: 2026-01-14T11:30:00Z
+ *                 title: Software Engineer
+ *                 description: We are looking for a skilled Software Engineer to join our growing development team.
+ *                 location: Addis Ababa, Ethiopia
+ *                 type: full-time
+ *                 work_mode: hybrid
+ *                 key_responsibilities:
+ *                   - Develop and maintain web applications
+ *                   - Collaborate with cross-functional teams
+ *                 what_we_offer:
+ *                   - Competitive salary
+ *                   - Professional development opportunities
+ *                 requirements:
+ *                   - Bachelor's degree in Computer Science or related field
+ *                 deadline: 2026-02-15T17:00:00Z
+ *                 status: ACTIVE
  *     responses:
  *       200:
  *         description: Job updated successfully

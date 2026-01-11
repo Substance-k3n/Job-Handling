@@ -433,20 +433,10 @@ router.patch('/responses/:responseId/save', toggleSaveResponse);
  * /admin/responses/{responseId}/send-invitation:
  *   post:
  *     tags: [Applications - Admin]
- *     summary: STEP 11 - Send interview invitation (Phase 2)
+ *     summary: STEP 11 - Send interview invitation
  *     description: |
- *       Send interview invitation email with Google Meet link.
- *       
- *       **Backend automatically:**
- *       1. Creates a Google Calendar event
- *       2. Generates a Google Meet link
- *       3. Sends email to applicant with details
- *       4. Sets isInvited flag to true
- *       5. Stores interview details in database
- *       
- *       **Phase 2 Feature** - Requires Google Calendar API setup.
- *       
- *       After sending, filter invited candidates using `?isInvited=true` query parameter.
+ *       Send interview invitation email with provided meeting location/link.
+ *       Backend stores invitation details and marks the application as invited.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -464,21 +454,48 @@ router.patch('/responses/:responseId/save', toggleSaveResponse);
  *           schema:
  *             type: object
  *             required:
- *               - interviewDate
- *               - interviewTime
+ *               - applicant_name
+ *               - role
+ *               - interview_date
+ *               - interview_time
+ *               - interview_location
+ *               - sender_name
+ *               - sender_title
  *             properties:
- *               interviewDate:
+ *               applicant_name:
+ *                 type: string
+ *                 example: Jane Smith
+ *               role:
+ *                 type: string
+ *                 example: Software Engineer
+ *               interview_date:
  *                 type: string
  *                 format: date
- *                 description: Interview date in YYYY-MM-DD format
  *                 example: "2026-01-20"
- *               interviewTime:
+ *               interview_time:
  *                 type: string
- *                 description: Interview time in HH:MM format (24-hour)
- *                 example: "10:00"
+ *                 example: "14:00"
+ *               interview_location:
+ *                 type: string
+ *                 example: "Zoom - https://zoom.us/j/1234567890?pwd=abcdef"
+ *               custom_message:
+ *                 type: string
+ *                 example: "We're excited to learn more about your experience and see how you might contribute to our team. Please prepare to discuss your recent projects."
+ *               sender_name:
+ *                 type: string
+ *                 example: John Smith
+ *               sender_title:
+ *                 type: string
+ *                 example: Talent Acquisition Manager
  *           example:
- *             interviewDate: "2026-01-20"
- *             interviewTime: "14:30"
+ *             applicant_name: "Jane Smith"
+ *             role: "Software Engineer"
+ *             interview_date: "2026-01-20"
+ *             interview_time: "14:00"
+ *             interview_location: "Zoom - https://zoom.us/j/1234567890?pwd=abcdef"
+ *             custom_message: "We're excited to learn more about your experience and see how you might contribute to our team. Please prepare to discuss your recent projects."
+ *             sender_name: "John Smith"
+ *             sender_title: "Talent Acquisition Manager"
  *     responses:
  *       200:
  *         description: Interview invitation sent successfully
