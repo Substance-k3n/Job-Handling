@@ -5,12 +5,13 @@
     "version": "1.0.0"
   },
   "paths": {
-    "/api/applications": {
+    "/admin/jobs": {
       "post": {
         "tags": [
-          "Applications"
+          "Jobs - Admin"
         ],
-        "summary": "Apply for a job (user only)",
+        "summary": "STEP 2 - Create a new job",
+        "description": "Create job metadata. Job is created as INACTIVE by default and not visible to users.\nYou must add fields and then publish it to make it visible.\n",
         "security": [
           {
             "bearerAuth": []
@@ -19,46 +20,90 @@
         "requestBody": {
           "required": true,
           "content": {
-            "multipart/form-data": {
+            "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "job": {
-                    "type": "string"
-                  },
-                  "coverLetter": {
-                    "type": "string"
-                  },
-                  "cv": {
-                    "type": "string",
-                    "format": "binary"
-                  }
-                }
+                "$ref": "#/components/schemas/CreateJobRequest"
+              },
+              "example": {
+                "title": "Frontend Developer",
+                "description": "We are hiring a React developer with 3+ years of experience",
+                "location": "Addis Ababa, Ethiopia",
+                "type": "full-time",
+                "work_mode": "hybrid",
+                "key_responsibilities": [
+                  "Develop and maintain web applications",
+                  "Collaborate with cross-functional teams",
+                  "Write clean, scalable code",
+                  "Participate in code reviews",
+                  "Troubleshoot and debug issues"
+                ],
+                "what_we_offer": [
+                  "Competitive salary",
+                  "Health and dental insurance",
+                  "Remote work flexibility",
+                  "Professional development opportunities",
+                  "Generous vacation policy"
+                ],
+                "requirements": [
+                  "Bachelor's degree in Computer Science or related field",
+                  "3+ years of experience in software development",
+                  "Proficiency in JavaScript, React, and Node.js",
+                  "Strong problem-solving skills",
+                  "Excellent communication and teamwork abilities"
+                ],
+                "deadline": "2026-02-15T17:00:00Z",
+                "validFrom": "2026-01-12T10:00:00Z",
+                "validTo": "2026-01-31T23:59:59Z"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Application submitted",
+            "description": "Job created successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Application"
+                  "$ref": "#/components/schemas/JobResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Job created successfully",
+                  "data": {
+                    "id": "677a1b2c3d4e5f6789abcdef"
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "Validation error"
+            "description": "Validation error - Missing required fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Title, description, and validTo are required"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing token"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
           }
         }
       },
       "get": {
         "tags": [
-          "Applications"
+          "Jobs - Admin"
         ],
-        "summary": "Get all applications (admin only)",
+        "summary": "Get all jobs (Admin view)",
+        "description": "Retrieve all jobs regardless of status (ACTIVE, INACTIVE).\nIncludes jobs that are expired or not yet valid.\n\n**Supports filtering by job status:**\n- Filter by ACTIVE jobs only\n- Filter by INACTIVE jobs only\n- No filter returns all jobs\n",
         "security": [
           {
             "bearerAuth": []
@@ -66,55 +111,174 @@
         ],
         "responses": {
           "200": {
-            "description": "List of applications",
+            "description": "Jobs retrieved successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Application"
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Jobs retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "number",
+                          "description": "Total number of jobs matching filter",
+                          "example": 5
+                        },
+                        "filters": {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "nullable": true,
+                              "example": "ACTIVE"
+                            }
+                          },
+                          "description": "Applied filters"
+                        },
+                        "jobs": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_id": {
+                                "type": "string",
+                                "example": "677a1b2c3d4e5f6789abcdef"
+                              },
+                              "title": {
+                                "type": "string",
+                                "example": "Frontend Developer"
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "We are hiring a React developer..."
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "ACTIVE",
+                                  "INACTIVE"
+                                ],
+                                "example": "ACTIVE"
+                              },
+                              "validFrom": {
+                                "type": "string",
+                                "format": "date-time",
+                                "example": "2026-01-12T10:00:00Z"
+                              },
+                              "validTo": {
+                                "type": "string",
+                                "format": "date-time",
+                                "example": "2026-01-31T23:59:59Z"
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "example": "2026-01-04T14:30:00Z"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "allJobs": {
+                    "summary": "All jobs (no filter)",
+                    "value": {
+                      "success": true,
+                      "message": "Jobs retrieved successfully",
+                      "data": {
+                        "total": 10,
+                        "filters": {
+                          "status": null
+                        },
+                        "jobs": []
+                      }
+                    }
+                  },
+                  "activeOnly": {
+                    "summary": "Active jobs only",
+                    "value": {
+                      "success": true,
+                      "message": "Jobs retrieved successfully",
+                      "data": {
+                        "total": 5,
+                        "filters": {
+                          "status": "ACTIVE"
+                        },
+                        "jobs": []
+                      }
+                    }
+                  },
+                  "inactiveOnly": {
+                    "summary": "Inactive jobs only",
+                    "value": {
+                      "success": true,
+                      "message": "Jobs retrieved successfully",
+                      "data": {
+                        "total": 3,
+                        "filters": {
+                          "status": "INACTIVE"
+                        },
+                        "jobs": []
+                      }
+                    }
                   }
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
           }
-        }
-      }
-    },
-    "/api/applications/my-applications": {
-      "get": {
-        "tags": [
-          "Applications"
-        ],
-        "summary": "Get current user's applications (user only)",
-        "security": [
+        },
+        "parameters": [
           {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of user's applications",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Application"
-                  }
-                }
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "INACTIVE"
+              ]
+            },
+            "description": "Filter jobs by status",
+            "examples": {
+              "active": {
+                "summary": "Get only active jobs",
+                "value": "ACTIVE"
+              },
+              "inactive": {
+                "summary": "Get only inactive jobs",
+                "value": "INACTIVE"
               }
             }
           }
-        }
+        ]
       }
     },
-    "/api/applications/job/{jobId}": {
+    "/admin/jobs/{jobId}": {
       "get": {
         "tags": [
-          "Applications"
+          "Jobs - Admin"
         ],
-        "summary": "Get applications for a job (admin only)",
+        "summary": "Get single job with all fields",
+        "description": "Retrieve complete job details including all form fields.\nFields are returned sorted by order property.\n",
         "security": [
           {
             "bearerAuth": []
@@ -127,32 +291,111 @@
             "required": true,
             "schema": {
               "type": "string"
-            }
+            },
+            "description": "Job ID (MongoDB ObjectId)",
+            "example": "677a1b2c3d4e5f6789abcdef"
           }
         ],
         "responses": {
           "200": {
-            "description": "List of applications for the job",
+            "description": "Job retrieved successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Application"
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Job retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "validFrom": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "validTo": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "fields": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "question": {
+                                "type": "string"
+                              },
+                              "options": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": {
+                                "type": "boolean"
+                              },
+                              "order": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
                   }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Job not found"
                 }
               }
             }
           }
         }
-      }
-    },
-    "/api/applications/{id}/status": {
+      },
       "patch": {
         "tags": [
-          "Applications"
+          "Jobs - Admin"
         ],
-        "summary": "Update application status (admin only)",
+        "summary": "Update job metadata (new format)",
+        "description": "Update metadata fields of a job (title, description, location, type, work_mode, key_responsibilities, what_we_offer, requirements, deadline, status). If setting status to ACTIVE, the job must already have at least one form field.",
         "security": [
           {
             "bearerAuth": []
@@ -161,11 +404,679 @@
         "parameters": [
           {
             "in": "path",
-            "name": "id",
+            "name": "jobId",
             "required": true,
             "schema": {
               "type": "string"
+            },
+            "description": "Job ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateJobRequest"
+              },
+              "examples": {
+                "fullUpdate": {
+                  "summary": "Update multiple fields",
+                  "value": {
+                    "title": "Software Engineer",
+                    "description": "We are looking for a skilled Software Engineer to join our growing development team.",
+                    "location": "Addis Ababa, Ethiopia",
+                    "type": "full-time",
+                    "work_mode": "hybrid",
+                    "key_responsibilities": [
+                      "Develop and maintain web applications",
+                      "Collaborate with cross-functional teams"
+                    ],
+                    "what_we_offer": [
+                      "Competitive salary",
+                      "Professional development opportunities"
+                    ],
+                    "requirements": [
+                      "Bachelor's degree in Computer Science or related field"
+                    ],
+                    "deadline": "2026-02-15T17:00:00Z",
+                    "status": "ACTIVE"
+                  }
+                }
+              }
             }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Job updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateJobResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error (invalid status or date range)"
+          },
+          "404": {
+            "description": "Job not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Jobs - Admin"
+        ],
+        "summary": "Delete a job permanently",
+        "description": "Permanently delete a job and all its associated data:\n- Job metadata\n- All form fields\n- Applications (optional - you may want to keep these)\n\n**Warning:** This action cannot be undone!\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Job ID",
+            "example": "677a1b2c3d4e5f6789abcdef"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Job deleted successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Job not found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/jobs/{jobId}/status": {
+      "patch": {
+        "tags": [
+          "Jobs - Admin"
+        ],
+        "summary": "STEP 4 - Publish or unpublish a job",
+        "description": "Change job status to make it visible or hidden to public users.\n\n**ACTIVE:** Job becomes visible if within validFrom/validTo dates.\nWhen set to ACTIVE, validFrom is automatically updated to current time.\n\n**INACTIVE:** Job is hidden from public view.\n\n**Job Visibility Logic:**\nA job is visible to users if:\n- status === 'ACTIVE'\n- current time >= validFrom\n- current time <= validTo\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Job ID",
+            "example": "677a1b2c3d4e5f6789abcdef"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateJobStatusRequest"
+              },
+              "example": {
+                "status": "ACTIVE"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Job status updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatusUpdateResponse",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Job published and live successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "example": "677a1b2c3d4e5f6789abcdef"
+                        },
+                        "status": {
+                          "type": "string",
+                          "example": "ACTIVE"
+                        },
+                        "validFrom": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Updated to current time when set to ACTIVE",
+                          "example": "2026-01-04T15:00:00Z"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid status value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid status. Must be ACTIVE or INACTIVE"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Job not found"
+          }
+        }
+      }
+    },
+    "/admin/jobs/{jobId}/fields": {
+      "post": {
+        "tags": [
+          "Job Fields - Admin"
+        ],
+        "summary": "STEP 3 - Add a field to job application form",
+        "description": "Add a new field to the job application form. Works like Google Forms.\n\n**Available Field Types:**\n- `short_answer` - Single line text input (e.g., name, email)\n- `paragraph` - Multi-line text area (e.g., cover letter)\n- `multiple_choice` - Radio buttons - single selection (requires options)\n- `checkboxes` - Multiple checkboxes - multi selection (requires options)\n- `dropdown` - Select dropdown menu (requires options)\n- `file` - File upload (e.g., CV, resume)\n- `rating` - Star rating or numeric scale\n- `date` - Date picker\n- `time` - Time picker\n\n**For multiple_choice, checkboxes, and dropdown:**\nYou MUST provide an `options` array with at least one option.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Job ID",
+            "example": "677a1b2c3d4e5f6789abcdef"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddFieldRequest"
+              },
+              "examples": {
+                "shortAnswer": {
+                  "summary": "Short Answer Field",
+                  "value": {
+                    "type": "short_answer",
+                    "question": "What is your full name?",
+                    "required": true,
+                    "order": 1
+                  }
+                },
+                "paragraph": {
+                  "summary": "Paragraph Field",
+                  "value": {
+                    "type": "paragraph",
+                    "question": "Tell us why you want to join our company",
+                    "required": true,
+                    "order": 4
+                  }
+                },
+                "multipleChoice": {
+                  "summary": "Multiple Choice Field",
+                  "value": {
+                    "type": "multiple_choice",
+                    "question": "Years of Experience",
+                    "options": [
+                      "0-1",
+                      "2-3",
+                      "4-5",
+                      "5+"
+                    ],
+                    "required": true,
+                    "order": 3
+                  }
+                },
+                "checkboxes": {
+                  "summary": "Checkboxes Field",
+                  "value": {
+                    "type": "checkboxes",
+                    "question": "What technologies do you know?",
+                    "options": [
+                      "React",
+                      "Node.js",
+                      "Python",
+                      "Java",
+                      "Go"
+                    ],
+                    "required": false,
+                    "order": 5
+                  }
+                },
+                "dropdown": {
+                  "summary": "Dropdown Field",
+                  "value": {
+                    "type": "dropdown",
+                    "question": "Preferred work location",
+                    "options": [
+                      "Remote",
+                      "Office",
+                      "Hybrid"
+                    ],
+                    "required": true,
+                    "order": 6
+                  }
+                },
+                "file": {
+                  "summary": "File Upload Field",
+                  "value": {
+                    "type": "file",
+                    "question": "Upload your CV/Resume",
+                    "required": true,
+                    "order": 2
+                  }
+                },
+                "rating": {
+                  "summary": "Rating Field",
+                  "value": {
+                    "type": "rating",
+                    "question": "Rate your JavaScript skills (1-5)",
+                    "required": false,
+                    "order": 7
+                  }
+                },
+                "date": {
+                  "summary": "Date Field",
+                  "value": {
+                    "type": "date",
+                    "question": "When can you start?",
+                    "required": true,
+                    "order": 8
+                  }
+                },
+                "time": {
+                  "summary": "Time Field",
+                  "value": {
+                    "type": "time",
+                    "question": "Preferred interview time",
+                    "required": false,
+                    "order": 9
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Field added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Field added successfully",
+                  "data": {
+                    "fieldId": "677b2c3d4e5f6789abcdef01"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidType": {
+                    "summary": "Invalid Field Type",
+                    "value": {
+                      "success": false,
+                      "message": "Invalid field type"
+                    }
+                  },
+                  "missingOptions": {
+                    "summary": "Missing Options",
+                    "value": {
+                      "success": false,
+                      "message": "Options are required for multiple_choice field type"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Job not found"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Job Fields - Admin"
+        ],
+        "summary": "Get all fields for a job",
+        "description": "Retrieve all form fields for a specific job.\nFields are automatically sorted by the order property (ascending).\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Job ID",
+            "example": "677a1b2c3d4e5f6789abcdef"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job fields retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Job fields retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "jobId": {
+                          "type": "string",
+                          "example": "677a1b2c3d4e5f6789abcdef"
+                        },
+                        "fields": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "example": "677b2c3d4e5f6789abcdef01"
+                              },
+                              "type": {
+                                "type": "string",
+                                "example": "short_answer"
+                              },
+                              "question": {
+                                "type": "string",
+                                "example": "What is your full name?"
+                              },
+                              "options": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "example": []
+                              },
+                              "required": {
+                                "type": "boolean",
+                                "example": true
+                              },
+                              "order": {
+                                "type": "number",
+                                "example": 1
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid job ID"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Job not found or no fields exist"
+          }
+        }
+      }
+    },
+    "/admin/jobs/{jobId}/fields/reorder": {
+      "patch": {
+        "tags": [
+          "Job Fields - Admin"
+        ],
+        "summary": "Reorder multiple form fields",
+        "description": "Change the display order of multiple fields at once.\nThis is useful when you want to reorganize the form after adding several fields.\n\n**Note:** The request body key is `fields` (not `orders`).\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Job ID",
+            "example": "677a1b2c3d4e5f6789abcdef"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderFieldsRequest",
+                "type": "object",
+                "required": [
+                  "fields"
+                ],
+                "properties": {
+                  "fields": {
+                    "type": "array",
+                    "description": "Array of field reordering instructions",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "order"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "description": "Field ID"
+                        },
+                        "order": {
+                          "type": "number",
+                          "description": "New order position (starts from 1)"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "example": {
+                "fields": [
+                  {
+                    "id": "677b2c3d4e5f6789abcdef01",
+                    "order": 3
+                  },
+                  {
+                    "id": "677b2c3d4e5f6789abcdef02",
+                    "order": 1
+                  },
+                  {
+                    "id": "677b2c3d4e5f6789abcdef03",
+                    "order": 2
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Fields reordered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Fields reordered successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request - missing fields array",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Orders array is required"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Job fields not found"
+          }
+        }
+      }
+    },
+    "/admin/jobs/{jobId}/fields/{fieldId}": {
+      "patch": {
+        "tags": [
+          "Job Fields - Admin"
+        ],
+        "summary": "Update a specific field",
+        "description": "Modify properties of an existing form field.\nYou can update any property except the field ID.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Job ID",
+            "example": "677a1b2c3d4e5f6789abcdef"
+          },
+          {
+            "in": "path",
+            "name": "fieldId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Field ID to update",
+            "example": "677b2c3d4e5f6789abcdef01"
           }
         ],
         "requestBody": {
@@ -175,8 +1086,66 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "status": {
-                    "type": "string"
+                  "question": {
+                    "type": "string",
+                    "description": "Question text"
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Options for multiple_choice, checkboxes, dropdown"
+                  },
+                  "required": {
+                    "type": "boolean",
+                    "description": "Whether field is required"
+                  },
+                  "type": {
+                    "type": "string",
+                    "description": "Field type"
+                  },
+                  "order": {
+                    "type": "number",
+                    "description": "Display order"
+                  }
+                }
+              },
+              "examples": {
+                "updateQuestion": {
+                  "summary": "Update Question Text",
+                  "value": {
+                    "question": "How many years of React experience do you have?"
+                  }
+                },
+                "updateOptions": {
+                  "summary": "Update Options",
+                  "value": {
+                    "options": [
+                      "Less than 1 year",
+                      "1-2 years",
+                      "3-5 years",
+                      "5+ years"
+                    ]
+                  }
+                },
+                "updateRequired": {
+                  "summary": "Change Required Status",
+                  "value": {
+                    "required": false
+                  }
+                },
+                "updateMultiple": {
+                  "summary": "Update Multiple Properties",
+                  "value": {
+                    "question": "Years of professional experience",
+                    "options": [
+                      "0-1",
+                      "2-3",
+                      "4-5",
+                      "5+"
+                    ],
+                    "required": true
                   }
                 }
               }
@@ -185,17 +1154,62 @@
         },
         "responses": {
           "200": {
-            "description": "Application status updated"
+            "description": "Field updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Field updated successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Job or field not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "jobNotFound": {
+                    "summary": "Job Not Found",
+                    "value": {
+                      "success": false,
+                      "message": "Job fields not found"
+                    }
+                  },
+                  "fieldNotFound": {
+                    "summary": "Field Not Found",
+                    "value": {
+                      "success": false,
+                      "message": "Field not found"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
-      }
-    },
-    "/api/applications/{id}": {
-      "get": {
+      },
+      "delete": {
         "tags": [
-          "Applications"
+          "Job Fields - Admin"
         ],
-        "summary": "Get application by id (authenticated)",
+        "summary": "Delete a field from the form",
+        "description": "Permanently remove a field from the job application form.\n\n**Warning:** This will also remove any answers to this field in existing applications.\n",
         "security": [
           {
             "bearerAuth": []
@@ -204,20 +1218,55 @@
         "parameters": [
           {
             "in": "path",
-            "name": "id",
+            "name": "jobId",
             "required": true,
             "schema": {
               "type": "string"
-            }
+            },
+            "description": "Job ID",
+            "example": "677a1b2c3d4e5f6789abcdef"
+          },
+          {
+            "in": "path",
+            "name": "fieldId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Field ID to delete",
+            "example": "677b2c3d4e5f6789abcdef01"
           }
         ],
         "responses": {
           "200": {
-            "description": "Application",
+            "description": "Field deleted successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Application"
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Field deleted successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Job or field not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -225,18 +1274,824 @@
         }
       }
     },
-    "/api/auth/register": {
-      "post": {
+    "/admin/jobs/{jobId}/responses": {
+      "get": {
         "tags": [
-          "Authentication"
+          "Applications - Admin"
         ],
-        "summary": "Register a new user",
+        "summary": "STEP 8 - Get all responses/applications for a job",
+        "description": "Fetch all applications submitted for a specific job.\nReturns a summary list with basic applicant information and status flags.\n\n**Supports powerful filtering by application status:**\n\n**Available Filters:**\n- `isSaved` - Bookmarked/shortlisted applications\n- `isInvited` - Applications where interview invitation has been sent\n- `isAccepted` - Applications where acceptance/offer has been sent\n\n**Filter Examples:**\n- `?isSaved=true` - Get all saved applications\n- `?isInvited=false` - Get applications not yet invited\n- `?isSaved=true&isInvited=false` - Saved but not invited (ready to invite)\n- `?isInvited=true&isAccepted=false` - In interview process\n- `?isAccepted=true` - All hired candidates\n\n**No filters = returns all applications**\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Job ID",
+            "example": "677a1b2c3d4e5f6789abcdef"
+          },
+          {
+            "in": "query",
+            "name": "isSaved",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Filter by saved/bookmarked status",
+            "examples": {
+              "saved": {
+                "summary": "Get saved applications only",
+                "value": true
+              },
+              "notSaved": {
+                "summary": "Get not saved applications only",
+                "value": false
+              }
+            }
+          },
+          {
+            "in": "query",
+            "name": "isInvited",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Filter by interview invitation status",
+            "examples": {
+              "invited": {
+                "summary": "Get invited applications only",
+                "value": true
+              },
+              "notInvited": {
+                "summary": "Get not invited applications only",
+                "value": false
+              }
+            }
+          },
+          {
+            "in": "query",
+            "name": "isAccepted",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Filter by acceptance/offer status",
+            "examples": {
+              "accepted": {
+                "summary": "Get accepted applications only",
+                "value": true
+              },
+              "notAccepted": {
+                "summary": "Get not accepted applications only",
+                "value": false
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Responses retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationResponseList",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Responses retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "number",
+                          "description": "Total number of responses matching filters",
+                          "example": 5
+                        },
+                        "filters": {
+                          "type": "object",
+                          "properties": {
+                            "isSaved": {
+                              "type": "string",
+                              "nullable": true,
+                              "example": "true"
+                            },
+                            "isInvited": {
+                              "type": "string",
+                              "nullable": true,
+                              "example": "false"
+                            },
+                            "isAccepted": {
+                              "type": "string",
+                              "nullable": true,
+                              "example": null
+                            }
+                          },
+                          "description": "Applied filters (null means no filter)"
+                        },
+                        "responses": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "responseId": {
+                                "type": "string",
+                                "example": "677c3d4e5f6789abcdef012"
+                              },
+                              "applicantName": {
+                                "type": "string",
+                                "example": "John Doe"
+                              },
+                              "applicantEmail": {
+                                "type": "string",
+                                "example": "john@gmail.com"
+                              },
+                              "applicantPhoneNumber": {
+                                "type": "string",
+                                "example": "251962212818"
+                              },
+                              "submittedAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "example": "2026-01-12T12:00:00Z"
+                              },
+                              "isSaved": {
+                                "type": "boolean",
+                                "example": true,
+                                "description": "Admin has bookmarked/saved this application"
+                              },
+                              "isInvited": {
+                                "type": "boolean",
+                                "example": false,
+                                "description": "Interview invitation has been sent"
+                              },
+                              "isAccepted": {
+                                "type": "boolean",
+                                "example": false,
+                                "description": "Acceptance email has been sent"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "allResponses": {
+                    "summary": "All applications (no filter)",
+                    "value": {
+                      "success": true,
+                      "message": "Responses retrieved successfully",
+                      "data": {
+                        "total": 10,
+                        "filters": {
+                          "isSaved": null,
+                          "isInvited": null,
+                          "isAccepted": null
+                        },
+                        "responses": []
+                      }
+                    }
+                  },
+                  "savedOnly": {
+                    "summary": "Saved applications only",
+                    "value": {
+                      "success": true,
+                      "message": "Responses retrieved successfully",
+                      "data": {
+                        "total": 5,
+                        "filters": {
+                          "isSaved": "true",
+                          "isInvited": null,
+                          "isAccepted": null
+                        },
+                        "responses": []
+                      }
+                    }
+                  },
+                  "readyToInvite": {
+                    "summary": "Saved but not invited (ready to invite)",
+                    "value": {
+                      "success": true,
+                      "message": "Responses retrieved successfully",
+                      "data": {
+                        "total": 3,
+                        "filters": {
+                          "isSaved": "true",
+                          "isInvited": "false",
+                          "isAccepted": null
+                        },
+                        "responses": []
+                      }
+                    }
+                  },
+                  "inInterviewProcess": {
+                    "summary": "Invited but not accepted (in interview process)",
+                    "value": {
+                      "success": true,
+                      "message": "Responses retrieved successfully",
+                      "data": {
+                        "total": 2,
+                        "filters": {
+                          "isSaved": null,
+                          "isInvited": "true",
+                          "isAccepted": "false"
+                        },
+                        "responses": []
+                      }
+                    }
+                  },
+                  "hiredCandidates": {
+                    "summary": "Accepted candidates (hired)",
+                    "value": {
+                      "success": true,
+                      "message": "Responses retrieved successfully",
+                      "data": {
+                        "total": 1,
+                        "filters": {
+                          "isSaved": null,
+                          "isInvited": null,
+                          "isAccepted": "true"
+                        },
+                        "responses": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Admin access required"
+          },
+          "404": {
+            "description": "Job not found"
+          }
+        }
+      }
+    },
+    "/admin/responses/{responseId}": {
+      "get": {
+        "tags": [
+          "Applications - Admin"
+        ],
+        "summary": "STEP 9 - Get single response/application detail",
+        "description": "Fetch detailed information about a specific application including:\n- Complete applicant information\n- All answers to form questions\n- CV/file URLs (if uploaded)\n- Status flags\n\nQuestions are matched with answers for easy display.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "responseId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Response/Application ID",
+            "example": "677c3d4e5f6789abcdef012"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationResponseDetail",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Response retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "applicant": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "John Doe"
+                            },
+                            "email": {
+                              "type": "string",
+                              "example": "john@gmail.com"
+                            },
+                            "phoneNumber": {
+                              "type": "string",
+                              "example": "251962212818"
+                            },
+                            "country": {
+                              "type": "string",
+                              "example": "ethiopia"
+                            },
+                            "city": {
+                              "type": "string",
+                              "example": "Addis Ababa"
+                            }
+                          }
+                        },
+                        "answers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "question": {
+                                "type": "string",
+                                "example": "Full Name"
+                              },
+                              "type": {
+                                "type": "string",
+                                "example": "short_answer"
+                              },
+                              "value": {
+                                "oneOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array"
+                                  }
+                                ],
+                                "example": "John Doe"
+                              }
+                            }
+                          },
+                          "example": [
+                            {
+                              "question": "Full Name",
+                              "type": "short_answer",
+                              "value": "John Doe"
+                            },
+                            {
+                              "question": "Upload CV",
+                              "type": "file",
+                              "value": "http://localhost:9000/job-uploads/cv-1234567890-resume.pdf"
+                            },
+                            {
+                              "question": "Years of Experience",
+                              "type": "multiple_choice",
+                              "value": "5+"
+                            },
+                            {
+                              "question": "Technologies Known",
+                              "type": "checkboxes",
+                              "value": [
+                                "React",
+                                "Node.js",
+                                "MongoDB"
+                              ]
+                            }
+                          ]
+                        },
+                        "isSaved": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "isInvited": {
+                          "type": "boolean",
+                          "example": false
+                        },
+                        "isAccepted": {
+                          "type": "boolean",
+                          "example": false
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2026-01-12T12:00:00Z"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Response not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Response not found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/responses/{responseId}/save": {
+      "patch": {
+        "tags": [
+          "Applications - Admin"
+        ],
+        "summary": "STEP 10 - Save or unsave a response",
+        "description": "Toggle the saved/bookmarked status of an application.\n\nUse this to mark promising candidates or create a shortlist.\nSaved applications can be filtered using `?isSaved=true` query parameter.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "responseId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Response/Application ID",
+            "example": "677c3d4e5f6789abcdef012"
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UserRegister"
+                "type": "object",
+                "required": [
+                  "isSaved"
+                ],
+                "properties": {
+                  "isSaved": {
+                    "type": "boolean",
+                    "description": "Set to true to save/bookmark, false to unsave"
+                  }
+                }
+              },
+              "examples": {
+                "save": {
+                  "summary": "Save Application",
+                  "value": {
+                    "isSaved": true
+                  }
+                },
+                "unsave": {
+                  "summary": "Unsave Application",
+                  "value": {
+                    "isSaved": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Response save status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Response save status updated"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "responseId": {
+                          "type": "string",
+                          "example": "677c3d4e5f6789abcdef012"
+                        },
+                        "isSaved": {
+                          "type": "boolean",
+                          "example": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Response not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Response not found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/responses/{responseId}/send-invitation": {
+      "post": {
+        "tags": [
+          "Applications - Admin"
+        ],
+        "summary": "STEP 11 - Send interview invitation",
+        "description": "Send interview invitation email with provided meeting location/link.\nBackend stores invitation details and marks the application as invited.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "responseId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Response/Application ID",
+            "example": "677c3d4e5f6789abcdef012"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendInvitationRequest",
+                "type": "object",
+                "required": [
+                  "applicant_name",
+                  "role",
+                  "interview_date",
+                  "interview_time",
+                  "interview_location",
+                  "sender_name",
+                  "sender_title"
+                ],
+                "properties": {
+                  "applicant_name": {
+                    "type": "string",
+                    "example": "Jane Smith"
+                  },
+                  "role": {
+                    "type": "string",
+                    "example": "Software Engineer"
+                  },
+                  "interview_date": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-01-20"
+                  },
+                  "interview_time": {
+                    "type": "string",
+                    "example": "14:00"
+                  },
+                  "interview_location": {
+                    "type": "string",
+                    "example": "Zoom - https://zoom.us/j/1234567890?pwd=abcdef"
+                  },
+                  "custom_message": {
+                    "type": "string",
+                    "example": "We're excited to learn more about your experience and see how you might contribute to our team. Please prepare to discuss your recent projects."
+                  },
+                  "sender_name": {
+                    "type": "string",
+                    "example": "John Smith"
+                  },
+                  "sender_title": {
+                    "type": "string",
+                    "example": "Talent Acquisition Manager"
+                  }
+                }
+              },
+              "example": {
+                "applicant_name": "Jane Smith",
+                "role": "Software Engineer",
+                "interview_date": "2026-01-20",
+                "interview_time": "14:00",
+                "interview_location": "Zoom - https://zoom.us/j/1234567890?pwd=abcdef",
+                "custom_message": "We're excited to learn more about your experience and see how you might contribute to our team. Please prepare to discuss your recent projects.",
+                "sender_name": "John Smith",
+                "sender_title": "Talent Acquisition Manager"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Interview invitation sent successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Interview invitation sent successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "responseId": {
+                          "type": "string",
+                          "example": "677c3d4e5f6789abcdef012"
+                        },
+                        "isInvited": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "interviewDetails": {
+                          "type": "object",
+                          "properties": {
+                            "date": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "time": {
+                              "type": "string"
+                            },
+                            "meetLink": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Response not found"
+          },
+          "500": {
+            "description": "Server error (Google Calendar/Email service failure)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Failed to create Google Calendar event"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/responses/{responseId}/send-acceptance": {
+      "post": {
+        "tags": [
+          "Applications - Admin"
+        ],
+        "summary": "STEP 12 - Send acceptance email (Phase 2)",
+        "description": "Send job acceptance/offer email to applicant.\n\n**Backend automatically:**\n1. Sends congratulations email to applicant\n2. Sets isAccepted flag to true\n3. Records acceptance timestamp\n\n**Phase 2 Feature** - Requires email service setup.\n\nAfter sending, filter accepted candidates using `?isAccepted=true` query parameter.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "responseId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Response/Application ID",
+            "example": "677c3d4e5f6789abcdef012"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Acceptance email sent successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Acceptance Email sent successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "responseId": {
+                          "type": "string",
+                          "example": "677c3d4e5f6789abcdef012"
+                        },
+                        "isAccepted": {
+                          "type": "boolean",
+                          "example": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Response not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Response not found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error (Email service failure)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Failed to send acceptance email"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Register a new user",
+        "description": "Create a new user account. You can later promote this user to admin manually in MongoDB Atlas.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
               }
             }
           }
@@ -247,56 +2102,76 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthResponse"
+                  "$ref": "#/components/schemas/LoginResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "Validation error"
+            "description": "Validation error or user already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
     },
-    "/api/auth/login": {
+    "/auth/login": {
       "post": {
         "tags": [
           "Authentication"
         ],
-        "summary": "Login a user and receive a JWT",
+        "summary": "Admin login",
+        "description": "Authenticate admin user and receive JWT token",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UserLogin"
+                "$ref": "#/components/schemas/LoginRequest"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Successful login",
+            "description": "Login successful",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthResponse"
+                  "$ref": "#/components/schemas/LoginResponse"
                 }
               }
             }
           },
           "401": {
-            "description": "Invalid credentials"
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid email or password"
+                }
+              }
+            }
           }
         }
       }
     },
-    "/api/auth/me": {
+    "/auth/me": {
       "get": {
         "tags": [
           "Authentication"
         ],
         "summary": "Get current authenticated user",
+        "description": "Retrieve profile information of the currently logged-in user",
         "security": [
           {
             "bearerAuth": []
@@ -304,267 +2179,164 @@
         ],
         "responses": {
           "200": {
-            "description": "Current user",
+            "description": "User profile retrieved successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/jobs": {
-      "get": {
-        "tags": [
-          "Jobs"
-        ],
-        "summary": "Get a list of jobs",
-        "responses": {
-          "200": {
-            "description": "List of jobs",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Job"
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User profile retrieved"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "_id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string"
+                        }
+                      }
+                    }
                   }
                 }
               }
             }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Jobs"
-        ],
-        "summary": "Create a new job (admin only)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/JobInput"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Job created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Job"
-                }
-              }
-            }
           },
           "401": {
-            "description": "Unauthorized"
+            "description": "Unauthorized - Invalid or missing token"
           }
         }
       }
     },
-    "/api/jobs/{id}": {
+    "/jobs": {
       "get": {
         "tags": [
-          "Jobs"
+          "Jobs - Public"
         ],
-        "summary": "Get job by id",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "summary": "STEP 1 - Fetch all available jobs (PUBLIC - No Authentication)",
+        "description": "Fetch all publicly visible jobs for the talent/user side.\n\nReturns only job metadata summary (title, short description, dates).\nTo get full details and form fields, call GET /jobs/{jobId}\n\nVisibility: Only jobs that are ACTIVE and not past their deadline are returned.\n\n**NO AUTHENTICATION REQUIRED** - Anyone can view jobs\n",
         "responses": {
           "200": {
-            "description": "Job found",
+            "description": "Jobs retrieved successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Job"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Job not found"
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Jobs"
-        ],
-        "summary": "Update a job (admin only)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/JobInput"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Job updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Job"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Jobs"
-        ],
-        "summary": "Delete a job (admin only)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Job deleted"
-          }
-        }
-      }
-    },
-    "/api/applications/{id}/move-stage": {
-      "patch": {
-        "tags": [
-          "Pipeline"
-        ],
-        "summary": "Move application to a different pipeline stage (admin only)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "stage": {
-                    "type": "string",
-                    "enum": [
-                      "applied",
-                      "screening",
-                      "interview",
-                      "assessment",
-                      "offer",
-                      "hired",
-                      "rejected"
-                    ]
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Jobs retrieved successfully"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "Job ID",
+                            "example": "677a1b2c3d4e5f6789abcdef"
+                          },
+                          "title": {
+                            "type": "string",
+                            "description": "Job title",
+                            "example": "Software Engineer"
+                          },
+                          "shortDescription": {
+                            "type": "string",
+                            "description": "First 100 characters of job description",
+                            "example": "We are looking for a skilled Software Engineer to join our growing development team..."
+                          },
+                          "location": {
+                            "type": "string",
+                            "example": "Addis Ababa, Ethiopia"
+                          },
+                          "type": {
+                            "type": "string",
+                            "example": "full-time"
+                          },
+                          "work_mode": {
+                            "type": "string",
+                            "example": "hybrid"
+                          },
+                          "deadline": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "Job application deadline",
+                            "example": "2026-02-15T17:00:00Z"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "multipleJobs": {
+                    "summary": "Multiple Active Jobs (summary)",
+                    "value": {
+                      "success": true,
+                      "message": "Jobs retrieved successfully",
+                      "data": [
+                        {
+                          "id": "677a1b2c3d4e5f6789abcdef",
+                          "title": "Software Engineer",
+                          "shortDescription": "We are looking for a skilled Software Engineer to join our growing development team...",
+                          "location": "Addis Ababa, Ethiopia",
+                          "type": "full-time",
+                          "work_mode": "hybrid",
+                          "deadline": "2026-02-15T17:00:00Z"
+                        },
+                        {
+                          "id": "677a1b2c3d4e5f6789abcdf0",
+                          "title": "Backend Developer",
+                          "shortDescription": "Looking for Node.js developer with experience in microservices and PostgreSQL...",
+                          "location": "Addis Ababa, Ethiopia",
+                          "type": "full-time",
+                          "work_mode": "onsite",
+                          "deadline": "2026-03-01T17:00:00Z"
+                        }
+                      ]
+                    }
                   },
-                  "notes": {
-                    "type": "string"
+                  "noJobs": {
+                    "summary": "No Active Jobs",
+                    "value": {
+                      "success": true,
+                      "message": "Jobs retrieved successfully",
+                      "data": []
+                    }
                   }
                 }
               }
             }
           }
-        },
-        "responses": {
-          "200": {
-            "description": "Application moved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Application"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation or invalid transition"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "403": {
-            "description": "Forbidden"
-          },
-          "404": {
-            "description": "Application not found"
-          }
         }
       }
     },
-    "/api/jobs/{jobId}/pipeline-stats": {
+    "/jobs/{jobId}": {
       "get": {
         "tags": [
-          "Pipeline"
+          "Jobs - Public"
         ],
-        "summary": "Get pipeline statistics for a job (admin only)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
+        "summary": "STEP 2 - Fetch single job with complete form schema (PUBLIC - No Authentication)",
+        "description": "Fetch detailed job information including all application form fields.\n\n**Returns:**\n- Full job metadata (not truncated)\n- All form fields with their configuration\n- Field types, questions, options, required status\n- Fields are sorted by the `order` property\n\n**Use Case:**\nFrontend uses this response to dynamically render the job application form.\nEach field type (short_answer, multiple_choice, file, etc.) should be \nrendered as the appropriate UI component.\n\n**NO AUTHENTICATION REQUIRED** - Anyone can view job details\n",
         "parameters": [
           {
             "in": "path",
@@ -572,27 +2344,190 @@
             "required": true,
             "schema": {
               "type": "string"
-            }
+            },
+            "description": "Job ID (MongoDB ObjectId)",
+            "example": "677a1b2c3d4e5f6789abcdef"
           }
         ],
         "responses": {
           "200": {
-            "description": "Pipeline statistics retrieved",
+            "description": "Job retrieved successfully with form schema",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "job": {
-                      "type": "object"
+                    "success": {
+                      "type": "boolean",
+                      "example": true
                     },
-                    "totalApplications": {
-                      "type": "integer"
+                    "message": {
+                      "type": "string",
+                      "example": "Job retrieved successfully"
                     },
-                    "pipelineBreakdown": {
-                      "type": "array",
-                      "items": {
-                        "type": "object"
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "example": "677a1b2c3d4e5f6789abcdef"
+                        },
+                        "title": {
+                          "type": "string",
+                          "example": "Frontend Developer"
+                        },
+                        "description": {
+                          "type": "string",
+                          "example": "We are looking for a skilled Software Engineer to join our growing development team. The ideal candidate will have strong problem-solving skills and experience in modern web technologies."
+                        },
+                        "location": {
+                          "type": "string",
+                          "example": "Addis Ababa, Ethiopia"
+                        },
+                        "type": {
+                          "type": "string",
+                          "example": "full-time"
+                        },
+                        "work_mode": {
+                          "type": "string",
+                          "example": "hybrid"
+                        },
+                        "key_responsibilities": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "example": [
+                            "Develop and maintain web applications",
+                            "Collaborate with cross-functional teams",
+                            "Write clean, scalable code",
+                            "Participate in code reviews",
+                            "Troubleshoot and debug issues"
+                          ]
+                        },
+                        "what_we_offer": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "example": [
+                            "Competitive salary",
+                            "Health and dental insurance",
+                            "Remote work flexibility",
+                            "Professional development opportunities",
+                            "Generous vacation policy"
+                          ]
+                        },
+                        "requirements": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "example": [
+                            "Bachelor's degree in Computer Science or related field",
+                            "3+ years of experience in software development",
+                            "Proficiency in JavaScript, React, and Node.js",
+                            "Strong problem-solving skills",
+                            "Excellent communication and teamwork abilities"
+                          ]
+                        },
+                        "deadline": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2026-02-15T17:00:00Z"
+                        },
+                        "fields": {
+                          "type": "array",
+                          "description": "Form fields sorted by order property",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "description": "Field ID - use this when submitting answers",
+                                "example": "677b2c3d4e5f6789abcdef01"
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "short_answer",
+                                  "paragraph",
+                                  "multiple_choice",
+                                  "checkboxes",
+                                  "dropdown",
+                                  "file",
+                                  "rating",
+                                  "date",
+                                  "time"
+                                ],
+                                "description": "Field type determines UI component to render",
+                                "example": "short_answer"
+                              },
+                              "question": {
+                                "type": "string",
+                                "description": "Question text to display",
+                                "example": "What is your full name?"
+                              },
+                              "options": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "description": "Options for multiple_choice, checkboxes, dropdown (empty for other types)",
+                                "example": []
+                              },
+                              "required": {
+                                "type": "boolean",
+                                "description": "Whether this field must be filled",
+                                "example": true
+                              },
+                              "order": {
+                                "type": "number",
+                                "description": "Display order (fields are pre-sorted)",
+                                "example": 1
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "completeJob": {
+                    "summary": "Job with Multiple Field Types",
+                    "value": {
+                      "success": true,
+                      "message": "Job retrieved successfully",
+                      "data": {
+                        "id": "677a1b2c3d4e5f6789abcdef",
+                        "title": "Software Engineer",
+                        "description": "We are looking for a skilled Software Engineer to join our growing development team. The ideal candidate will have strong problem-solving skills and experience in modern web technologies.",
+                        "location": "Addis Ababa, Ethiopia",
+                        "type": "full-time",
+                        "work_mode": "hybrid",
+                        "key_responsibilities": [
+                          "Develop and maintain web applications",
+                          "Collaborate with cross-functional teams",
+                          "Write clean, scalable code",
+                          "Participate in code reviews",
+                          "Troubleshoot and debug issues"
+                        ],
+                        "what_we_offer": [
+                          "Competitive salary",
+                          "Health and dental insurance",
+                          "Remote work flexibility",
+                          "Professional development opportunities",
+                          "Generous vacation policy"
+                        ],
+                        "requirements": [
+                          "Bachelor's degree in Computer Science or related field",
+                          "3+ years of experience in software development",
+                          "Proficiency in JavaScript, React, and Node.js",
+                          "Strong problem-solving skills",
+                          "Excellent communication and teamwork abilities"
+                        ],
+                        "deadline": "2026-02-15T17:00:00Z"
                       }
                     }
                   }
@@ -600,11 +2535,129 @@
               }
             }
           },
-          "401": {
-            "description": "Unauthorized"
+          "403": {
+            "description": "Job is no longer available (INACTIVE or outside date range)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "This job is no longer available"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This job is no longer available"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Job not found"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{jobId}/field": {
+      "get": {
+        "tags": [
+          "Jobs - Public"
+        ],
+        "summary": "STEP 2b - Fetch only application form fields (PUBLIC - No Authentication)",
+        "description": "Fetch only the application form schema for a job. Use this after the user clicks \"Apply\" to render the fields.\nFields are sorted by the `order` property.\n",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Job ID (MongoDB ObjectId)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Form schema retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Form schema retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "fields": {
+                          "type": "array",
+                          "description": "Form fields sorted by `order`",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "question": {
+                                "type": "string"
+                              },
+                              "options": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": {
+                                "type": "boolean"
+                              },
+                              "order": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
           "403": {
-            "description": "Forbidden"
+            "description": "Job is no longer available"
           },
           "404": {
             "description": "Job not found"
@@ -612,42 +2665,74 @@
         }
       }
     },
-    "/api/applications/{id}/stage-history": {
-      "get": {
+    "/files/upload": {
+      "post": {
         "tags": [
-          "Pipeline"
+          "Applications - Public"
         ],
-        "summary": "Get stage history for an application (admin or applicant)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
+        "summary": "Upload a file to MinIO and get public URL (generic)",
+        "description": "Simple utility endpoint to upload **any single file** to MinIO and get back\na public URL. This can be reused from other sites/frontends that just need\na MinIO-hosted file URL.\n\n**Notes:**\n- Field name must be `file`\n- Uses the same MinIO bucket and config as job applications (`job-uploads`)\n- Accepted formats are controlled by backend multer config (PDF, DOC, DOCX)\n- Max size is 5MB\n\n**NO AUTHENTICATION REQUIRED** by default.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "File to upload"
+                  }
+                }
+              },
+              "examples": {
+                "sampleFile": {
+                  "summary": "Example file upload",
+                  "value": {
+                    "file": "(binary file)"
+                  }
+                }
+              }
             }
           }
-        ],
+        },
         "responses": {
-          "200": {
-            "description": "Stage history retrieved",
+          "201": {
+            "description": "File uploaded successfully",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "currentStage": {
-                      "type": "string"
+                    "success": {
+                      "type": "boolean",
+                      "example": true
                     },
-                    "history": {
-                      "type": "array",
-                      "items": {
-                        "type": "object"
+                    "message": {
+                      "type": "string",
+                      "example": "File uploaded successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "fileName": {
+                          "type": "string",
+                          "example": "my_cv.pdf"
+                        },
+                        "bucket": {
+                          "type": "string",
+                          "example": "job-uploads"
+                        },
+                        "objectName": {
+                          "type": "string",
+                          "example": "cv-1736432960000-my_cv.pdf"
+                        },
+                        "url": {
+                          "type": "string",
+                          "description": "Public MinIO URL to access the file",
+                          "example": "http://localhost:9000/job-uploads/cv-1736432960000-my_cv.pdf"
+                        }
                       }
                     }
                   }
@@ -655,14 +2740,282 @@
               }
             }
           },
-          "401": {
-            "description": "Unauthorized"
+          "400": {
+            "description": "No file provided or upload failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "No file uploaded or upload failed"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{jobId}/apply": {
+      "post": {
+        "tags": [
+          "Applications - Public"
+        ],
+        "summary": "STEP 3 - Apply for a job (CRITICAL - PUBLIC - No Authentication)",
+        "description": "Submit a job application with form answers and optional CV upload.\n\n**CRITICAL REQUIREMENTS:**\n\n**1. Applicant Object (ALWAYS REQUIRED):**\nFrontend must ALWAYS collect these fields:\n- `name` (string, required)\n- `email` (string, required) - used for duplicate detection\n- `phoneNumber` (string, required)\n- `country` (string, required)\n- `city` (string, required)\n\n**2. Answers Array:**\n- Array of objects with `fieldId` and `value`\n- `fieldId`: Must match field IDs from GET /jobs/:jobId response\n- `value`: Can be string OR array (for checkboxes)\n- File field values are auto-populated by backend (don't include in answers)\n\n**3. File Upload (Optional but Recommended):**\n- If job has a file field, user can upload CV\n- Field name: `cv` (single file)\n- Must also send `fileFieldId` to specify which field it belongs to\n- Accepted formats: PDF, DOC, DOCX\n- Maximum size: 5MB\n- File is uploaded to MinIO cloud storage\n\n**4. Duplicate Prevention:**\n- User can only apply ONCE per job\n- Duplicate check is done by email address\n- Returns error code \"DUPLICATE_APPLICATION\" if already applied\n\n**5. Request Format:**\n- Content-Type: multipart/form-data\n- `applicant`: JSON string\n- `answers`: JSON string (array)\n- `cv`: File (optional)\n- `fileFieldId`: String (required if cv is provided)\n\n**NO AUTHENTICATION REQUIRED** - Anyone can apply\n\n**Frontend Integration Example:**\n```javascript\nconst formData = new FormData();\n\n// Applicant info (ALWAYS REQUIRED)\nformData.append('applicant', JSON.stringify({\n  name: \"John Doe\",\n  email: \"john.doe@gmail.com\",\n  phoneNumber: \"251962212818\",\n  country: \"Ethiopia\",\n  city: \"Addis Ababa\"\n}));\n\n// Form field answers\nformData.append('answers', JSON.stringify([\n  { fieldId: \"field_1\", value: \"John Doe\" },\n  { fieldId: \"field_3\", value: \"5+\" },\n  { fieldId: \"field_5\", value: [\"React\", \"TypeScript\"] } // array for checkboxes\n]));\n\n// CV file (if job requires it)\nif (cvFile) {\n  formData.append('cv', cvFile);\n  formData.append('fileFieldId', 'field_2');\n}\n\nfetch('/jobs/JOB_ID/apply', {\n  method: 'POST',\n  body: formData\n});\n```\n",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Job ID",
+            "example": "677a1b2c3d4e5f6789abcdef"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "applicant",
+                  "answers"
+                ],
+                "properties": {
+                  "applicant": {
+                    "type": "string",
+                    "description": "JSON string containing applicant information.\nAll fields are required!\n",
+                    "example": "{\"name\":\"John Doe\",\"email\":\"john.doe@gmail.com\",\"phoneNumber\":\"251962212818\",\"country\":\"Ethiopia\",\"city\":\"Addis Ababa\"}"
+                  },
+                  "answers": {
+                    "type": "string",
+                    "description": "JSON string array of field answers.\nEach answer has fieldId and value.\nFor checkboxes, value is an array.\nDon't include file fields - backend handles those.\n",
+                    "example": "[{\"fieldId\":\"677b2c3d4e5f6789abcdef01\",\"value\":\"John Doe\"},{\"fieldId\":\"677b2c3d4e5f6789abcdef03\",\"value\":\"5+\"},{\"fieldId\":\"677b2c3d4e5f6789abcdef05\",\"value\":[\"React\",\"TypeScript\",\"MongoDB\"]}]"
+                  },
+                  "cv": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "CV/Resume file (PDF, DOC, DOCX)\nMaximum size: 5MB\nOptional - only if job has a file field\n"
+                  },
+                  "fileFieldId": {
+                    "type": "string",
+                    "description": "Field ID where the CV should be attached.\nRequired if cv is provided.\nMust match a field of type 'file' from the job form.\n",
+                    "example": "677b2c3d4e5f6789abcdef02"
+                  }
+                }
+              },
+              "encoding": {
+                "applicant": {
+                  "contentType": "application/json"
+                },
+                "answers": {
+                  "contentType": "application/json"
+                }
+              },
+              "examples": {
+                "withCV": {
+                  "summary": "Application with CV Upload",
+                  "value": {
+                    "applicant": "{\"name\":\"John Doe\",\"email\":\"john.doe@gmail.com\",\"phoneNumber\":\"251962212818\",\"country\":\"Ethiopia\",\"city\":\"Addis Ababa\"}",
+                    "answers": "[{\"fieldId\":\"677b2c3d4e5f6789abcdef01\",\"value\":\"John Doe\"},{\"fieldId\":\"677b2c3d4e5f6789abcdef03\",\"value\":\"5+\"},{\"fieldId\":\"677b2c3d4e5f6789abcdef04\",\"value\":\"I am passionate about React\"},{\"fieldId\":\"677b2c3d4e5f6789abcdef05\",\"value\":[\"React\",\"TypeScript\"]},{\"fieldId\":\"677b2c3d4e5f6789abcdef06\",\"value\":\"2026-02-01\"}]",
+                    "cv": "(binary file)",
+                    "fileFieldId": "677b2c3d4e5f6789abcdef02"
+                  }
+                },
+                "withoutCV": {
+                  "summary": "Application without CV Upload",
+                  "value": {
+                    "applicant": "{\"name\":\"Jane Smith\",\"email\":\"jane.smith@gmail.com\",\"phoneNumber\":\"251912345678\",\"country\":\"Ethiopia\",\"city\":\"Addis Ababa\"}",
+                    "answers": "[{\"fieldId\":\"677b2c3d4e5f6789abcdef01\",\"value\":\"Jane Smith\"},{\"fieldId\":\"677b2c3d4e5f6789abcdef03\",\"value\":\"2-3\"}]"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Application submitted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Application submitted successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "applicationId": {
+                          "type": "string",
+                          "description": "ID of the created application",
+                          "example": "677c1b2c3d4e5f6789abcde0"
+                        },
+                        "cvUrl": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Public MinIO URL of the uploaded CV (null if no file uploaded)",
+                          "example": "http://localhost:9000/job-uploads/cv-1736432960000-john_doe_cv.pdf"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "message": "Application submitted successfully",
+                  "data": {
+                    "applicationId": "677c1b2c3d4e5f6789abcde0",
+                    "cvUrl": "http://localhost:9000/job-uploads/cv-1736432960000-john_doe_cv.pdf"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - validation error or duplicate application",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "description": "Error code (only for specific errors)",
+                      "example": "DUPLICATE_APPLICATION"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "You have already applied for this job."
+                    }
+                  }
+                },
+                "examples": {
+                  "duplicateApplication": {
+                    "summary": "Duplicate Application (Same Email)",
+                    "value": {
+                      "success": false,
+                      "code": "DUPLICATE_APPLICATION",
+                      "message": "You have already applied for this job."
+                    }
+                  },
+                  "missingFields": {
+                    "summary": "Missing Required Applicant Fields",
+                    "value": {
+                      "success": false,
+                      "message": "Name, email, phone number, country, and city are required"
+                    }
+                  },
+                  "invalidEmail": {
+                    "summary": "Invalid Email Format",
+                    "value": {
+                      "success": false,
+                      "message": "Invalid email format"
+                    }
+                  },
+                  "fileTooLarge": {
+                    "summary": "File Size Exceeds Limit",
+                    "value": {
+                      "success": false,
+                      "message": "File size exceeds 5MB limit"
+                    }
+                  },
+                  "invalidFileType": {
+                    "summary": "Invalid File Type",
+                    "value": {
+                      "success": false,
+                      "message": "Only PDF and DOC/DOCX files are allowed"
+                    }
+                  }
+                }
+              }
+            }
           },
           "403": {
-            "description": "Forbidden"
+            "description": "Job is no longer accepting applications",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "This job is no longer accepting applications"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This job is no longer accepting applications"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Application not found"
+            "description": "Job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Job not found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "File too large (exceeds 5MB)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "File too large"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

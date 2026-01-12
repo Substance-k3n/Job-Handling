@@ -109,9 +109,16 @@ exports.sendInterviewInvitation = async (
 };
 
 /**
- * Send acceptance email
+ * Send acceptance email - NEW FORMAT
  */
-exports.sendAcceptanceEmail = async (toEmail, applicantName, jobTitle) => {
+exports.sendAcceptanceEmail = async (
+  toEmail, 
+  applicantName, 
+  role,
+  customMessage,
+  senderName,
+  senderTitle
+) => {
   if (!isEmailConfigured()) {
     console.log('📧 [SKIPPED] Acceptance email (email not configured)');
     return { skipped: true, reason: 'Email not configured' };
@@ -121,16 +128,16 @@ exports.sendAcceptanceEmail = async (toEmail, applicantName, jobTitle) => {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: toEmail,
-      subject: `Congratulations! - ${jobTitle}`,
+      subject: `Congratulations! - ${role} Position at FaydaTech`,
       html: `
         <h2>Congratulations!</h2>
-        <p>Dear ${applicantName},</p>
-        <p>We are delighted to inform you that you have been selected for the position of <strong>${jobTitle}</strong>.</p>
-        <p>We will contact you shortly with further details.</p>
+        <p>Hi ${applicantName},</p>
+        <p>Congratulations, We are delighted to offer you the position of <strong>${role}</strong> at FaydaTech.</p>
         <br>
-        <p>Welcome to the team!</p>
+        ${customMessage ? `<p>${customMessage}</p><br>` : ''}
+        <p>We're excited to have you on board and look forward to working with you!</p>
         <br>
-        <p>Best regards,<br>Hiring Team</p>
+        <p>Best regards,<br>${senderName}<br>${senderTitle}</p>
       `
     };
 

@@ -10,19 +10,16 @@ const { upload, uploadToMinio } = require('../config/multer');
  * /jobs:
  *   get:
  *     tags: [Jobs - Public]
- *     summary: STEP 1 - Fetch all available jobs (PUBLIC - No Authentication)
+ *     summary: STEP 1 - Fetch all available jobs with full metadata (PUBLIC - No Authentication)
  *     description: |
  *       Fetch all publicly visible jobs for the talent/user side.
  *       
- *       **Job Visibility Rules:**
- *       A job is visible if ALL conditions are met:
- *       - `status === 'ACTIVE'`
- *       - Current time >= `validFrom`
- *       - Current time <= `validTo`
+ *       Returns full job metadata for each job (title, full description, location, type,
+ *       work mode, key responsibilities, what we offer, requirements, deadline).
+ *       Application form fields are NOT included here; to get fields for a specific job,
+ *       use GET /jobs/{jobId} which returns both metadata and fields.
  *       
- *       **Performance Note:**
- *       Returns only job metadata (title, short description, dates).
- *       To get full details and form fields, call GET /jobs/:jobId
+ *       Visibility: Only jobs that are ACTIVE and not past their deadline are returned.
  *       
  *       **NO AUTHENTICATION REQUIRED** - Anyone can view jobs
  *     responses:
@@ -51,38 +48,92 @@ const { upload, uploadToMinio } = require('../config/multer');
  *                       title:
  *                         type: string
  *                         description: Job title
- *                         example: Frontend Developer
- *                       shortDescription:
+ *                         example: Software Engineer
+ *                       description:
  *                         type: string
- *                         description: First 100 characters of job description
- *                         example: We are hiring a React developer with 3+ years of experience. Must know TypeScript, React hooks...
- *                       validFrom:
+ *                         description: Full job description
+ *                         example: We are looking for a skilled Software Engineer to join our growing development team. The ideal candidate will have strong problem-solving skills and experience in modern web technologies.
+ *                       location:
+ *                         type: string
+ *                         example: Addis Ababa, Ethiopia
+ *                       type:
+ *                         type: string
+ *                         example: full-time
+ *                       work_mode:
+ *                         type: string
+ *                         example: hybrid
+ *                       key_responsibilities:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: [
+ *                           "Develop and maintain web applications",
+ *                           "Collaborate with cross-functional teams",
+ *                           "Write clean, scalable code"
+ *                         ]
+ *                       what_we_offer:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: [
+ *                           "Competitive salary",
+ *                           "Health and dental insurance"
+ *                         ]
+ *                       requirements:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: [
+ *                           "Bachelor's degree in Computer Science or related field",
+ *                           "3+ years of experience in software development"
+ *                         ]
+ *                       deadline:
  *                         type: string
  *                         format: date-time
- *                         description: Job starts accepting applications from this date
- *                         example: "2026-01-12T10:00:00Z"
- *                       validTo:
- *                         type: string
- *                         format: date-time
- *                         description: Job stops accepting applications after this date
- *                         example: "2026-01-31T23:59:59Z"
+ *                         description: Job application deadline
+ *                         example: "2026-02-15T17:00:00Z"
  *             examples:
  *               multipleJobs:
- *                 summary: Multiple Active Jobs
+ *                 summary: Multiple Active Jobs (full metadata)
  *                 value:
  *                   success: true
  *                   message: Jobs retrieved successfully
  *                   data:
  *                     - id: 677a1b2c3d4e5f6789abcdef
- *                       title: Frontend Developer
- *                       shortDescription: We are hiring a React developer with 3+ years of experience. Must know TypeScript, React hooks...
- *                       validFrom: "2026-01-12T10:00:00Z"
- *                       validTo: "2026-01-31T23:59:59Z"
+ *                       title: Software Engineer
+ *                       description: We are looking for a skilled Software Engineer to join our growing development team.
+ *                       location: Addis Ababa, Ethiopia
+ *                       type: full-time
+ *                       work_mode: hybrid
+ *                       key_responsibilities: [
+ *                         "Develop and maintain web applications",
+ *                         "Collaborate with cross-functional teams"
+ *                       ]
+ *                       what_we_offer: [
+ *                         "Competitive salary",
+ *                         "Health and dental insurance"
+ *                       ]
+ *                       requirements: [
+ *                         "Bachelor's degree in Computer Science or related field",
+ *                         "3+ years of experience in software development"
+ *                       ]
+ *                       deadline: "2026-02-15T17:00:00Z"
  *                     - id: 677a1b2c3d4e5f6789abcdf0
  *                       title: Backend Developer
- *                       shortDescription: Looking for Node.js developer with experience in microservices and PostgreSQL...
- *                       validFrom: "2026-01-15T10:00:00Z"
- *                       validTo: "2026-02-15T23:59:59Z"
+ *                       description: Looking for Node.js developer with experience in microservices and PostgreSQL.
+ *                       location: Addis Ababa, Ethiopia
+ *                       type: full-time
+ *                       work_mode: onsite
+ *                       key_responsibilities: [
+ *                         "Design and implement REST APIs"
+ *                       ]
+ *                       what_we_offer: [
+ *                         "Health and dental insurance"
+ *                       ]
+ *                       requirements: [
+ *                         "Experience with Node.js and PostgreSQL"
+ *                       ]
+ *                       deadline: "2026-03-01T17:00:00Z"
  *               noJobs:
  *                 summary: No Active Jobs
  *                 value:
@@ -102,7 +153,7 @@ router.get('/jobs', publicJobController.getPublicJobs);
  *       Fetch detailed job information including all application form fields.
  *       
  *       **Returns:**
- *       - Complete job description (not truncated)
+ *       - Full job metadata (not truncated)
  *       - All form fields with their configuration
  *       - Field types, questions, options, required status
  *       - Fields are sorted by the `order` property
@@ -261,6 +312,24 @@ router.get('/jobs', publicJobController.getPublicJobs);
  *                       "Excellent communication and teamwork abilities"
  *                     ]
  *                     deadline: "2026-02-15T17:00:00Z"
+ *                     fields: [
+ *                       {
+ *                         id: "677b2c3d4e5f6789abcdef01",
+ *                         type: "short_answer",
+ *                         question: "What is your full name?",
+ *                         options: [],
+ *                         required: true,
+ *                         order: 1
+ *                       },
+ *                       {
+ *                         id: "677b2c3d4e5f6789abcdef02",
+ *                         type: "file",
+ *                         question: "Upload your CV/Resume",
+ *                         options: [],
+ *                         required: true,
+ *                         order: 2
+ *                       }
+ *                     ]
  *       403:
  *         description: Job is no longer available (INACTIVE or outside date range)
  *         content:
@@ -292,66 +361,6 @@ router.get('/jobs', publicJobController.getPublicJobs);
  *                   example: Job not found
  */
 router.get('/jobs/:jobId', publicJobController.getPublicJobById);
-
-/**
- * @swagger
- * /jobs/{jobId}/field:
- *   get:
- *     tags: [Jobs - Public]
- *     summary: STEP 2b - Fetch only application form fields (PUBLIC - No Authentication)
- *     description: |
- *       Fetch only the application form schema for a job. Use this after the user clicks "Apply" to render the fields.
- *       Fields are sorted by the `order` property.
- *     parameters:
- *       - in: path
- *         name: jobId
- *         required: true
- *         schema:
- *           type: string
- *         description: Job ID (MongoDB ObjectId)
- *     responses:
- *       200:
- *         description: Form schema retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Form schema retrieved successfully
- *                 data:
- *                   type: object
- *                   properties:
- *                     fields:
- *                       type: array
- *                       description: Form fields sorted by `order`
- *                       items:
- *                         type: object
- *                         properties:
- *                           id:
- *                             type: string
- *                           type:
- *                             type: string
- *                           question:
- *                             type: string
- *                           options:
- *                             type: array
- *                             items:
- *                               type: string
- *                           required:
- *                             type: boolean
- *                           order:
- *                             type: number
- *       403:
- *         description: Job is no longer available
- *       404:
- *         description: Job not found
- */
-router.get('/jobs/:jobId/field', publicJobController.getPublicJobForm);
 
 /**
  * @swagger

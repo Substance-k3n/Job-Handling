@@ -545,7 +545,7 @@ router.post('/responses/:responseId/send-invitation', sendInterviewInvitation);
  *   post:
  *     tags: [Applications - Admin]
  *     summary: STEP 12 - Send acceptance email (Phase 2)
- *     description: Send job acceptance email to applicant
+ *     description: Send job acceptance email to applicant using the new acceptance format.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -554,11 +554,69 @@ router.post('/responses/:responseId/send-invitation', sendInterviewInvitation);
  *         required: true
  *         schema:
  *           type: string
+ *         description: Application/response ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SendAcceptanceRequest'
+ *           examples:
+ *             default:
+ *               summary: Send acceptance email
+ *               value:
+ *                 applicant_name: Jane Doe
+ *                 role: Frontend Developer
+ *                 custom_message: >-
+ *                   Please find the attached offer letter with details about your
+ *                   compensation and benefits. Kindly sign and return it by January 20, 2026.
+ *                 sender_name: John Smith
+ *                 sender_title: Talent Acquisition Manager
  *     responses:
  *       200:
  *         description: Acceptance email sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Acceptance Email sent successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     responseId:
+ *                       type: string
+ *                       example: 679c1d2e3f4g5h6789ijklmn
+ *                     isAccepted:
+ *                       type: boolean
+ *                       example: true
+ *                     acceptanceDetails:
+ *                       type: object
+ *                       properties:
+ *                         applicant_name:
+ *                           type: string
+ *                           example: Jane Doe
+ *                         role:
+ *                           type: string
+ *                           example: Frontend Developer
+ *                         custom_message:
+ *                           type: string
+ *                           example: Please find the attached offer letter with details about your compensation and benefits.
+ *                         sender_name:
+ *                           type: string
+ *                           example: John Smith
+ *                         sender_title:
+ *                           type: string
+ *                           example: Talent Acquisition Manager
  *       404:
  *         description: Response not found
+ *       400:
+ *         description: Validation error (missing required acceptance fields)
  */
 router.post('/responses/:responseId/send-acceptance', sendAcceptanceEmail);
 

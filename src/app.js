@@ -370,16 +370,75 @@ const swaggerOptions = {
         // Interview/Acceptance Schemas
         SendInvitationRequest: {
           type: 'object',
-          required: ['interviewDate', 'interviewTime'],
+          required: [
+            'applicant_name',
+            'role',
+            'interview_date',
+            'interview_time',
+            'interview_location',
+            'sender_name',
+            'sender_title'
+          ],
           properties: {
-            interviewDate: {
+            applicant_name: {
+              type: 'string',
+              example: 'Jane Smith'
+            },
+            role: {
+              type: 'string',
+              example: 'Software Engineer'
+            },
+            interview_date: {
               type: 'string',
               format: 'date',
               example: '2026-01-20'
             },
-            interviewTime: {
+            interview_time: {
               type: 'string',
-              example: '10:00'
+              example: '14:00'
+            },
+            interview_location: {
+              type: 'string',
+              example: 'Zoom - https://zoom.us/j/1234567890?pwd=abcdef'
+            },
+            custom_message: {
+              type: 'string',
+              example: "We're excited to learn more about your experience and see how you might contribute to our team."
+            },
+            sender_name: {
+              type: 'string',
+              example: 'John Smith'
+            },
+            sender_title: {
+              type: 'string',
+              example: 'Talent Acquisition Manager'
+            }
+          }
+        },
+
+        SendAcceptanceRequest: {
+          type: 'object',
+          required: ['applicant_name', 'role', 'sender_name', 'sender_title'],
+          properties: {
+            applicant_name: {
+              type: 'string',
+              example: 'Jane Doe'
+            },
+            role: {
+              type: 'string',
+              example: 'Frontend Developer'
+            },
+            custom_message: {
+              type: 'string',
+              example: 'Please find the attached offer letter with details about your compensation and benefits. Kindly sign and return it by January 20, 2026.'
+            },
+            sender_name: {
+              type: 'string',
+              example: 'John Smith'
+            },
+            sender_title: {
+              type: 'string',
+              example: 'Talent Acquisition Manager'
             }
           }
         },

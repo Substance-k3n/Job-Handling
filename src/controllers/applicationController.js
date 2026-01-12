@@ -296,35 +296,66 @@ exports.sendInterviewInvitation = async (req, res, next) => {
 };
 
 /**
- * STEP 12: Send Acceptance Email (Admin)
+ * STEP 12: Send Acceptance Email (Admin) - NEW FORMAT
  * POST /admin/responses/:responseId/send-acceptance
  */
 exports.sendAcceptanceEmail = async (req, res, next) => {
   try {
     const { responseId } = req.params;
+    const { 
+      applicant_name,
+      role,
+      custom_message,
+      sender_name,
+      sender_title
+    } = req.body;
+
+    // Validate required fields
+    if (!applicant_name || !role || !sender_name || !sender_title) {
+      return errorResponse(res, 400, 'All acceptance details are required: applicant_name, role, sender_name, sender_title');
+    }
 
     const response = await Application.findById(responseId).populate('jobId', 'title');
     if (!response) {
       return errorResponse(res, 404, 'Response not found');
     }
 
+    // Update application with acceptance details
     response.isAccepted = true;
+    response.acceptanceDetails = {
+      role,
+      custom_message: custom_message || '',
+      sender_name,
+      sender_title,
+      sentAt: new Date()
+    };
     await response.save();
 
-    // Send acceptance email
+    // Send acceptance email with new template
     try {
       await sendAcceptanceEmail(
         response.applicant.email,
-        response.applicant.name,
-        response.jobId.title
+        applicant_name,
+        role,
+        custom_message || '',
+        sender_name,
+        sender_title
       );
     } catch (emailError) {
       console.error('Email error:', emailError.message);
+      // Don't fail if email fails
     }
 
     return successResponse(res, 200, 'Acceptance Email sent successfully', {
       responseId: response._id,
-      isAccepted: response.isAccepted
+      isAccepted: response.isAccepted,
+      acceptanceDetails: {
+        applicant_name,
+        role,
+        custom_message: custom_message || '',
+        sender_name,
+        sender_title
+      }
     });
 
   } catch (error) {

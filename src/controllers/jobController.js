@@ -9,8 +9,19 @@ const { createAuditLog } = require('../utils/auditLogger');
  */
 exports.createJob = async (req, res, next) => {
   try {
-    const { title, description, location, type, work_mode, key_responsibilities, what_we_offer, requirements, deadline } = req.body;
+    const { 
+      title, 
+      description, 
+      location,
+      type,
+      work_mode,
+      key_responsibilities,
+      what_we_offer,
+      requirements,
+      deadline 
+    } = req.body;
 
+    // Validate required fields
     if (!title || !description || !deadline) {
       return errorResponse(res, 400, 'Title, description, and deadline are required');
     }
@@ -18,14 +29,14 @@ exports.createJob = async (req, res, next) => {
     const job = await Job.create({
       title,
       description,
-      location,
-      type,
-      work_mode,
-      key_responsibilities,
-      what_we_offer,
-      requirements,
-      deadline,
+      location: location || 'Addis Ababa, Ethiopia',
+      type: type || 'full-time',
+      work_mode: work_mode || 'onsite',
+      key_responsibilities: key_responsibilities || [],
+      what_we_offer: what_we_offer || [],
+      requirements: requirements || [],
       status: 'INACTIVE',
+      deadline,
       createdBy: req.user._id,
       hasField: false
     });
@@ -33,7 +44,8 @@ exports.createJob = async (req, res, next) => {
     return successResponse(res, 201, 'Job created successfully', {
       id: job._id,
       hasField: job.hasField,
-      status: job.status
+      status: job.status,
+      isPastDeadline: job.isPastDeadline
     });
 
   } catch (error) {
@@ -43,7 +55,7 @@ exports.createJob = async (req, res, next) => {
 
 /**
  * Get All Jobs (Admin) - WITH FILTERING
- * GET /admin/jobs?status=ACTIVE&hasField=true
+ * GET /admin/jobs?status=ACTIVE&hasField=true&isPastDeadline=false
  */
 exports.getAdminJobs = async (req, res, next) => {
   try {
@@ -60,15 +72,21 @@ exports.getAdminJobs = async (req, res, next) => {
       filter.hasField = req.query.hasField === 'true';
     }
 
+    // Filter by isPastDeadline (true, false)
+    if (req.query.isPastDeadline !== undefined) {
+      filter.isPastDeadline = req.query.isPastDeadline === 'true';
+    }
+
     const jobs = await Job.find(filter)
       .sort({ createdAt: -1 })
-      .select('title description status location type work_mode deadline hasField createdAt updatedAt');
+      .select('title description location type work_mode status deadline isPastDeadline hasField createdAt updatedAt');
 
     return successResponse(res, 200, 'Jobs retrieved successfully', {
       total: jobs.length,
       filters: {
         status: req.query.status || null,
-        hasField: req.query.hasField || null
+        hasField: req.query.hasField || null,
+        isPastDeadline: req.query.isPastDeadline || null
       },
       jobs
     });
@@ -105,6 +123,7 @@ exports.getAdminJobById = async (req, res, next) => {
       requirements: job.requirements,
       status: job.status,
       deadline: job.deadline,
+      isPastDeadline: job.isPastDeadline,
       hasField: job.hasField,
       isReadyToPublish: job.isReadyToPublish(),
       fields: jobFields ? jobFields.fields.sort((a, b) => a.order - b.order) : []
@@ -139,15 +158,18 @@ exports.updateJobStatus = async (req, res, next) => {
     }
 
     const previousStatus = job.status;
-
     job.status = status;
+    
+    // Update deadline status
+    job.updateDeadlineStatus();
+    
     await job.save();
 
-    // Create audit log for status change / metadata update (non-blocking)
+    // Create audit log for status change (non-blocking)
     try {
       let action = 'JOB_UPDATED';
       if (previousStatus === 'INACTIVE' && status === 'ACTIVE') {
-        action = 'JOB_REOPENED';
+        action = 'JOB_PUBLISHED';
       } else if (previousStatus === 'ACTIVE' && status === 'INACTIVE') {
         action = 'JOB_CLOSED';
       }
@@ -162,7 +184,8 @@ exports.updateJobStatus = async (req, res, next) => {
         details: {
           previousStatus,
           newStatus: job.status,
-          deadline: job.deadline
+          deadline: job.deadline,
+          isPastDeadline: job.isPastDeadline
         },
         severity: 'medium'
       });
@@ -176,6 +199,7 @@ exports.updateJobStatus = async (req, res, next) => {
       status: job.status,
       hasField: job.hasField,
       deadline: job.deadline,
+      isPastDeadline: job.isPastDeadline,
       updatedAt: job.updatedAt
     });
 
@@ -209,12 +233,23 @@ exports.deleteJob = async (req, res, next) => {
 /**
  * Update Job Metadata (Admin)
  * PATCH /admin/jobs/:jobId
- * Updates metadata fields: title, description, location, type, work_mode, key_responsibilities, what_we_offer, requirements, deadline, status
+ * Updates job metadata fields including new fields
  */
 exports.updateJobMetadata = async (req, res, next) => {
   try {
     const { jobId } = req.params;
-    const { title, description, status, location, type, work_mode, key_responsibilities, what_we_offer, requirements, deadline } = req.body;
+    const { 
+      title, 
+      description, 
+      location,
+      type,
+      work_mode,
+      key_responsibilities,
+      what_we_offer,
+      requirements,
+      status, 
+      deadline 
+    } = req.body;
 
     const job = await Job.findById(jobId);
     if (!job) {
@@ -226,34 +261,44 @@ exports.updateJobMetadata = async (req, res, next) => {
       return errorResponse(res, 400, 'Invalid status. Must be ACTIVE or INACTIVE');
     }
 
-    // If status is changed to ACTIVE, ensure job is ready (has at least one field)
+    // Validate type if provided
+    if (type !== undefined && !['full-time', 'part-time', 'contract', 'internship'].includes(type)) {
+      return errorResponse(res, 400, 'Invalid job type. Must be full-time, part-time, contract, or internship');
+    }
+
+    // Validate work_mode if provided
+    if (work_mode !== undefined && !['remote', 'onsite', 'hybrid'].includes(work_mode)) {
+      return errorResponse(res, 400, 'Invalid work mode. Must be remote, onsite, or hybrid');
+    }
+
+    // If status is changed to ACTIVE, ensure job is ready
     if (status && String(status).toUpperCase() === 'ACTIVE' && !job.hasField) {
       return errorResponse(res, 400, 'Cannot publish job without form fields. Please add at least one field first.');
     }
 
-    // Build updates object only with provided fields
+    // Build updates object
     const updates = {};
     if (title !== undefined) updates.title = title;
     if (description !== undefined) updates.description = description;
-    if (status !== undefined) updates.status = String(status).toUpperCase();
     if (location !== undefined) updates.location = location;
     if (type !== undefined) updates.type = type;
     if (work_mode !== undefined) updates.work_mode = work_mode;
     if (key_responsibilities !== undefined) updates.key_responsibilities = key_responsibilities;
     if (what_we_offer !== undefined) updates.what_we_offer = what_we_offer;
     if (requirements !== undefined) updates.requirements = requirements;
-    if (deadline !== undefined) {
-      const dl = new Date(deadline);
-      if (isNaN(dl.getTime())) {
-        return errorResponse(res, 400, 'Invalid deadline date');
-      }
-      if (dl < new Date()) {
-        return errorResponse(res, 400, 'Deadline must be in the future');
-      }
-      updates.deadline = dl;
+    if (status !== undefined) updates.status = String(status).toUpperCase();
+    if (deadline !== undefined) updates.deadline = new Date(deadline);
+
+    // Validate deadline (must be in future)
+    if (updates.deadline && updates.deadline < new Date()) {
+      return errorResponse(res, 400, 'Deadline must be in the future');
     }
 
     Object.assign(job, updates);
+    
+    // Update deadline status
+    job.updateDeadlineStatus();
+    
     await job.save();
 
     return successResponse(res, 200, 'Job updated successfully', {
@@ -268,6 +313,7 @@ exports.updateJobMetadata = async (req, res, next) => {
       requirements: job.requirements,
       status: job.status,
       deadline: job.deadline,
+      isPastDeadline: job.isPastDeadline,
       updatedAt: job.updatedAt
     });
 
