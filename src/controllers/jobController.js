@@ -80,7 +80,7 @@ exports.getAdminJobs = async (req, res, next) => {
 
     // Pagination parameters
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 9;
     const skip = (page - 1) * limit;
 
     // Get total count for pagination metadata
