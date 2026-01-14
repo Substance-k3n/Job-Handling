@@ -8,9 +8,9 @@ services:
       PORT: 5001
       NODE_ENV: "development"
       SWAGGER_ENABLED: "true"
-      # --- EMAIL & OAUTH CREDENTIALS ---
-      EMAIL_USER: "your-email@gmail.com"
-      EMAIL_PASS: "your-16-character-app-password"
+      # --- EMAIL (RESEND) & OAUTH CREDENTIALS ---
+      RESEND_API_KEY: "re_U9HSM8Tz_A1DhJqKZpXrxfbeMf5SWtZxL"
+      RESEND_FROM_EMAIL: "chiefwevoo@gmail.com"
       GOOGLE_CLIENT_ID: "your_id.apps.googleusercontent.com"
       GOOGLE_CLIENT_SECRET: "your_secret"
       GOOGLE_REDIRECT_URI: "http://localhost:5001/oauth2callback"

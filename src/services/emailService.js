@@ -1,28 +1,22 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
 /**
- * Check if email is configured
+ * Check if email is configured (Resend)
  */
 const isEmailConfigured = () => {
-  return !!(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD);
+  return !!(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL);
 };
 
 /**
- * Create transporter only if email is configured
+ * Create Resend client only if email is configured
  */
-let transporter = null;
+let resendClient = null;
 
 if (isEmailConfigured()) {
-  transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD
-    }
-  });
-  console.log('✅ Email service configured');
+  resendClient = new Resend(process.env.RESEND_API_KEY);
+  console.log('✅ Email service configured (Resend)');
 } else {
-  console.log('⚠️  Email service not configured (optional for Phase 1)');
+  console.log('⚠️  Email service not configured (Resend)');
 }
 
 /**
@@ -35,9 +29,9 @@ exports.sendApplicationConfirmation = async (toEmail, applicantName, jobTitle) =
   }
 
   try {
-    const mailOptions = {
-      from: `"FaydaTech Careers" <${process.env.EMAIL_USER}>`,
-      to: toEmail,
+    const result = await resendClient.emails.send({
+      from: `FaydaTech Careers <${process.env.RESEND_FROM_EMAIL}>`,
+      to: [toEmail],
       subject: `Application Received - ${jobTitle}`,
       html: `
         <!DOCTYPE html>
@@ -173,9 +167,7 @@ exports.sendApplicationConfirmation = async (toEmail, applicantName, jobTitle) =
         </body>
         </html>
       `
-    };
-
-    const result = await transporter.sendMail(mailOptions);
+    });
     console.log('✅ Application confirmation email sent to:', toEmail);
     return result;
   } catch (error) {
@@ -204,9 +196,9 @@ exports.sendInterviewInvitation = async (
   }
 
   try {
-    const mailOptions = {
-      from: `"${senderName} - FaydaTech" <${process.env.EMAIL_USER}>`,
-      to: toEmail,
+    const result = await resendClient.emails.send({
+      from: `${senderName} - FaydaTech <${process.env.RESEND_FROM_EMAIL}>`,
+      to: [toEmail],
       subject: `Interview Invitation for ${role}`,
       html: `
         <!DOCTYPE html>
@@ -412,9 +404,7 @@ exports.sendInterviewInvitation = async (
         </body>
         </html>
       `
-    };
-
-    const result = await transporter.sendMail(mailOptions);
+    });
     console.log('✅ Interview invitation email sent to:', toEmail);
     return result;
   } catch (error) {
@@ -440,9 +430,9 @@ exports.sendAcceptanceEmail = async (
   }
 
   try {
-    const mailOptions = {
-      from: `"${senderName} - FaydaTech" <${process.env.EMAIL_USER}>`,
-      to: toEmail,
+    const result = await resendClient.emails.send({
+      from: `${senderName} - FaydaTech <${process.env.RESEND_FROM_EMAIL}>`,
+      to: [toEmail],
       subject: `🎉 Congratulations! - ${role} Position at FaydaTech`,
       html: `
         <!DOCTYPE html>
@@ -623,9 +613,7 @@ exports.sendAcceptanceEmail = async (
         </body>
         </html>
       `
-    };
-
-    const result = await transporter.sendMail(mailOptions);
+    });
     console.log('✅ Acceptance email sent to:', toEmail);
     return result;
   } catch (error) {
