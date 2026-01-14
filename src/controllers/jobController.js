@@ -92,7 +92,7 @@ exports.getAdminJobs = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .select('title description location type work_mode status deadline isPastDeadline hasField createdAt updatedAt');
+      .select('title description location type work_mode key_responsibilities what_we_offer requirements status deadline isPastDeadline hasField createdAt updatedAt');
 
     return successResponse(res, 200, 'Jobs retrieved successfully', {
       jobs,

@@ -18,7 +18,7 @@ exports.getPublicJobs = async (req, res, next) => {
 
     // Pagination parameters
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * limit;
 
     // Get total count for pagination metadata
@@ -35,10 +35,14 @@ exports.getPublicJobs = async (req, res, next) => {
     const formattedJobs = jobs.map(job => ({
       id: job._id,
       title: job.title,
+      description: job.description,
       shortDescription: job.description.substring(0, 100) + (job.description.length > 100 ? '...' : ''),
       location: job.location,
       type: job.type,
       work_mode: job.work_mode,
+      key_responsibilities: job.key_responsibilities,
+      what_we_offer: job.what_we_offer,
+      requirements: job.requirements,
       deadline: job.deadline
     }));
 
