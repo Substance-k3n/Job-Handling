@@ -118,9 +118,21 @@ exports.getJobResponses = async (req, res, next) => {
       filter.isAccepted = req.query.isAccepted === 'true';
     }
 
+    // Pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination metadata
+    const totalResponses = await Application.countDocuments(filter);
+    const totalPages = Math.ceil(totalResponses / limit);
+
+    // Get paginated responses
     const responses = await Application.find(filter)
       .select('applicant.name applicant.email applicant.phoneNumber isSaved isInvited isAccepted createdAt')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     const formattedResponses = responses.map(r => ({
       responseId: r._id,
@@ -134,13 +146,20 @@ exports.getJobResponses = async (req, res, next) => {
     }));
 
     return successResponse(res, 200, 'Responses retrieved successfully', {
-      total: formattedResponses.length,
+      responses: formattedResponses,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalResponses,
+        responsesPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      },
       filters: {
         isSaved: req.query.isSaved,
         isInvited: req.query.isInvited,
         isAccepted: req.query.isAccepted
-      },
-      responses: formattedResponses
+      }
     });
 
   } catch (error) {

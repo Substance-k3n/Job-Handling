@@ -45,7 +45,8 @@ exports.createJob = async (req, res, next) => {
       id: job._id,
       hasField: job.hasField,
       status: job.status,
-      isPastDeadline: job.isPastDeadline
+      isPastDeadline: job.isPastDeadline,
+      createdAt: job.createdAt
     });
 
   } catch (error) {
@@ -77,18 +78,37 @@ exports.getAdminJobs = async (req, res, next) => {
       filter.isPastDeadline = req.query.isPastDeadline === 'true';
     }
 
+    // Pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination metadata
+    const totalJobs = await Job.countDocuments(filter);
+    const totalPages = Math.ceil(totalJobs / limit);
+
+    // Get paginated jobs
     const jobs = await Job.find(filter)
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .select('title description location type work_mode status deadline isPastDeadline hasField createdAt updatedAt');
 
     return successResponse(res, 200, 'Jobs retrieved successfully', {
-      total: jobs.length,
+      jobs,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalJobs,
+        jobsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      },
       filters: {
         status: req.query.status || null,
         hasField: req.query.hasField || null,
         isPastDeadline: req.query.isPastDeadline || null
-      },
-      jobs
+      }
     });
 
   } catch (error) {
@@ -125,6 +145,8 @@ exports.getAdminJobById = async (req, res, next) => {
       deadline: job.deadline,
       isPastDeadline: job.isPastDeadline,
       hasField: job.hasField,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
       isReadyToPublish: job.isReadyToPublish(),
       fields: jobFields ? jobFields.fields.sort((a, b) => a.order - b.order) : []
     });

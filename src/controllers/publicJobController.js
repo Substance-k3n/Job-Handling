@@ -11,27 +11,48 @@ exports.getPublicJobs = async (req, res, next) => {
   try {
     const now = new Date();
 
-    const jobs = await Job.find({
+    const filter = {
       status: 'ACTIVE',
       deadline: { $gte: now }
-    })
+    };
+
+    // Pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination metadata
+    const totalJobs = await Job.countDocuments(filter);
+    const totalPages = Math.ceil(totalJobs / limit);
+
+    // Get paginated jobs
+    const jobs = await Job.find(filter)
       .select('title description location type work_mode key_responsibilities what_we_offer requirements deadline')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     const formattedJobs = jobs.map(job => ({
       id: job._id,
       title: job.title,
-      description: job.description,
+      shortDescription: job.description.substring(0, 100) + (job.description.length > 100 ? '...' : ''),
       location: job.location,
       type: job.type,
       work_mode: job.work_mode,
-      key_responsibilities: job.key_responsibilities,
-      what_we_offer: job.what_we_offer,
-      requirements: job.requirements,
       deadline: job.deadline
     }));
 
-    return successResponse(res, 200, 'Jobs retrieved successfully', formattedJobs);
+    return successResponse(res, 200, 'Jobs retrieved successfully', {
+      jobs: formattedJobs,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalJobs,
+        jobsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    });
 
   } catch (error) {
     next(error);
@@ -72,6 +93,7 @@ exports.getPublicJobById = async (req, res, next) => {
       what_we_offer: job.what_we_offer,
       requirements: job.requirements,
       deadline: job.deadline,
+      createdAt: job.createdAt,
       fields
     });
 
