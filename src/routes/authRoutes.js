@@ -11,8 +11,8 @@ const router = express.Router();
  * /auth/register:
  *   post:
  *     tags: [Authentication]
- *     summary: Register a new user
- *     description: Create a new user account. You can later promote this user to admin manually in MongoDB Atlas.
+ *     summary: Register a new admin user
+ *     description: Create a new user account with admin role and access.
  *     requestBody:
  *       required: true
  *       content:

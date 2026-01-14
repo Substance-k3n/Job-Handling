@@ -5,7 +5,7 @@ const { createAuditLog } = require('../utils/auditLogger');
 
 const register = async (req, res, next) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -16,7 +16,7 @@ const register = async (req, res, next) => {
       name,
       email,
       password,
-      role: role || 'user'
+      role: 'admin'
     });
 
     const token = generateToken(user._id, user.role);
