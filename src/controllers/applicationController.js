@@ -289,7 +289,7 @@ exports.sendInterviewInvitation = async (req, res, next) => {
         sender_title
       );
     } catch (emailError) {
-      console.error('Email error:', emailError.message);
+      console.error('Email error:', emailError);
       // Don't fail if email fails
     }
 
