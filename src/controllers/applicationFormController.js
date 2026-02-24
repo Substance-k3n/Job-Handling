@@ -26,7 +26,7 @@ exports.addJobField = async (req, res, next) => {
     }
 
     // Validate field type
-    const validTypes = ['short_answer', 'paragraph', 'multiple_choice', 'checkboxes', 'dropdown', 'file', 'rating', 'date', 'time'];
+    const validTypes = ['short_answer', 'paragraph', 'link', 'multiple_choice', 'checkboxes', 'dropdown', 'file', 'rating', 'date', 'time'];
     if (!validTypes.includes(type)) {
       return errorResponse(res, 400, 'Invalid field type');
     }

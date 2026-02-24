@@ -30,6 +30,7 @@ router.use(captureMetadata);
  *       **Available Field Types:**
  *       - `short_answer` - Single line text input (e.g., name, email)
  *       - `paragraph` - Multi-line text area (e.g., cover letter)
+ *       - `link` - URL input (e.g., portfolio, LinkedIn profile)
  *       - `multiple_choice` - Radio buttons - single selection (requires options)
  *       - `checkboxes` - Multiple checkboxes - multi selection (requires options)
  *       - `dropdown` - Select dropdown menu (requires options)
@@ -71,6 +72,13 @@ router.use(captureMetadata);
  *                 question: Tell us why you want to join our company
  *                 required: true
  *                 order: 4
+ *             link:
+ *               summary: Link Field
+ *               value:
+ *                 type: link
+ *                 question: Link to your portfolio or LinkedIn profile
+ *                 required: false
+ *                 order: 2
  *             multipleChoice:
  *               summary: Multiple Choice Field
  *               value:

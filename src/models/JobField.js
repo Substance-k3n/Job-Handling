@@ -7,7 +7,7 @@ const fieldSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['short_answer', 'paragraph', 'multiple_choice', 'checkboxes', 'dropdown', 'file', 'rating', 'date', 'time'],
+    enum: ['short_answer', 'paragraph', 'link', 'multiple_choice', 'checkboxes', 'dropdown', 'file', 'rating', 'date', 'time'],
     required: true
   },
   question: {

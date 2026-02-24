@@ -256,7 +256,7 @@ router.get('/jobs', publicJobController.getPublicJobs);
  *                             example: 677b2c3d4e5f6789abcdef01
  *                           type:
  *                             type: string
- *                             enum: [short_answer, paragraph, multiple_choice, checkboxes, dropdown, file, rating, date, time]
+ *                             enum: [short_answer, paragraph, link, multiple_choice, checkboxes, dropdown, file, rating, date, time]
  *                             description: Field type determines UI component to render
  *                             example: short_answer
  *                           question:

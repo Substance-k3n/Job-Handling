@@ -10,6 +10,8 @@ const publicRoutes = require('./routes/publicRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const pipelineRoutes = require('./routes/pipelineRoutes');
 const auditRoutes = require('./routes/auditRoutes');
+const projectRoutes = require('./routes/projectRoutes');
+const milestoneRoutes = require('./routes/milestoneRoutes');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -217,7 +219,7 @@ const swaggerOptions = {
           properties: {
             type: {
               type: 'string',
-              enum: ['short_answer', 'paragraph', 'multiple_choice', 'checkboxes', 'dropdown', 'file', 'rating', 'date', 'time'],
+              enum: ['short_answer', 'paragraph', 'link', 'multiple_choice', 'checkboxes', 'dropdown', 'file', 'rating', 'date', 'time'],
               example: 'multiple_choice'
             },
             question: {
@@ -568,6 +570,10 @@ app.use('/api/auth', authRoutes);
 
 // ADMIN ROUTES (Requires Authentication + Admin Role)
 app.use('/api/admin', adminRoutes);
+
+// PROJECT & MILESTONE ROUTES (Admin-only)
+app.use('/api/admin/projects', projectRoutes);
+app.use('/api/admin/milestones', milestoneRoutes);
 
 // PHASE 2 ROUTES
 app.use('/api/pipeline', pipelineRoutes);
