@@ -275,6 +275,90 @@ const swaggerOptions = {
           }
         },
 
+        // Project & Milestone Schemas
+        CreateProjectRequest: {
+          type: 'object',
+          required: ['name', 'description'],
+          properties: {
+            name: { type: 'string', example: 'Website Redesign' },
+            description: { type: 'string', example: 'New marketing site rollout' },
+            imageUrl: { type: 'string', example: 'https://example.com/banner.png' },
+            status: { type: 'string', enum: ['ACTIVE', 'BLOCKED', 'CLOSED'], example: 'ACTIVE' }
+          }
+        },
+        ProjectResponse: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', example: true },
+            message: { type: 'string', example: 'Project created successfully' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                name: { type: 'string' },
+                description: { type: 'string' },
+                imageUrl: { type: 'string', nullable: true },
+                status: { type: 'string' },
+                createdAt: { type: 'string', format: 'date-time' }
+              }
+            }
+          }
+        },
+        CreateMilestoneRequest: {
+          type: 'object',
+          required: ['title'],
+          properties: {
+            title: { type: 'string', example: 'Design phase' },
+            description: { type: 'string', example: 'Wireframes and mockups' }
+          }
+        },
+        UpdateMilestoneStatusRequest: {
+          type: 'object',
+          required: ['status'],
+          properties: {
+            status: { type: 'string', enum: ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED'], example: 'IN_PROGRESS' }
+          }
+        },
+        ReorderMilestonesRequest: {
+          type: 'object',
+          required: ['milestones'],
+          properties: {
+            milestones: {
+              type: 'array',
+              items: {
+                type: 'object',
+                required: ['id', 'order'],
+                properties: {
+                  id: { type: 'string' },
+                  order: { type: 'number', example: 1 }
+                }
+              }
+            }
+          }
+        },
+        MilestoneResponse: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', example: true },
+            message: { type: 'string', example: 'Milestone updated successfully' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                projectId: { type: 'string' },
+                title: { type: 'string' },
+                description: { type: 'string', nullable: true },
+                order: { type: 'number' },
+                status: { type: 'string' },
+                startDate: { type: 'string', format: 'date-time', nullable: true },
+                endDate: { type: 'string', format: 'date-time', nullable: true },
+                createdAt: { type: 'string', format: 'date-time' },
+                updatedAt: { type: 'string', format: 'date-time' }
+              }
+            }
+          }
+        },
+
         // Public Job Schemas
         PublicJobListItem: {
           type: 'object',
@@ -489,6 +573,14 @@ const swaggerOptions = {
       {
         name: 'Applications - Admin',
         description: 'Application management endpoints (Admin only)'
+      },
+      {
+        name: 'Projects - Admin',
+        description: 'Project management endpoints (Admin only)'
+      },
+      {
+        name: 'Milestones - Admin',
+        description: 'Milestone management endpoints (Admin only)'
       },
       {
         name: 'Pipeline',
