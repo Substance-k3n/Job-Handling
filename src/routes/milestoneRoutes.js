@@ -53,7 +53,7 @@ router.put('/:milestoneId', updateMilestone);
  *   patch:
  *     tags: [Milestones - Admin]
  *     summary: Update milestone status
- *     description: Set status to NOT_STARTED, IN_PROGRESS, or COMPLETED. Start and end dates are set when a milestone starts or completes.
+ *     description: When moving to IN_PROGRESS, you must provide startDate and endDate. startDate cannot be changed later, while endDate can be increased. When moving to COMPLETED, you can optionally extend endDate.
  *     security:
  *       - bearerAuth: []
  *     parameters:

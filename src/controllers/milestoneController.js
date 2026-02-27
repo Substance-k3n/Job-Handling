@@ -88,7 +88,7 @@ const updateMilestone = async (req, res, next) => {
 const updateMilestoneStatus = async (req, res, next) => {
   try {
     const { milestoneId } = req.params;
-    const { status } = req.body;
+    const { status, startDate, endDate } = req.body;
 
     // Validate status
     if (!['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED'].includes(status)) {
@@ -105,22 +105,51 @@ const updateMilestoneStatus = async (req, res, next) => {
       return errorResponse(res, 400, 'Can only complete a milestone that is in progress');
     }
 
-    // Update status (pre-save hook will validate other rules)
-    milestone.status = status;
+    // Manual date logic:
+    // - when moving to IN_PROGRESS, require startDate and endDate
+    // - when moving to COMPLETED, allow endDate to stay or be increased
+    if (status === 'NOT_STARTED') {
+      if (startDate || endDate) {
+        return errorResponse(res, 400, 'Dates can only be set when a milestone is in progress or completed');
+      }
+    }
 
-    // Sequential date logic:
-    // - when a milestone moves to IN_PROGRESS, set startDate if not set
-    // - when it moves to COMPLETED, ensure startDate and set endDate
-    if (status === 'IN_PROGRESS' && !milestone.startDate) {
-      milestone.startDate = new Date();
+    if (status === 'IN_PROGRESS') {
+      if (!startDate || !endDate) {
+        return errorResponse(res, 400, 'startDate and endDate are required when moving a milestone to IN_PROGRESS');
+      }
+
+      if (milestone.startDate && startDate && new Date(startDate).getTime() !== milestone.startDate.getTime()) {
+        return errorResponse(res, 400, 'startDate is already set and cannot be changed');
+      }
+
+      if (milestone.endDate && new Date(endDate) < milestone.endDate) {
+        return errorResponse(res, 400, 'endDate can only be increased');
+      }
+
+      milestone.startDate = milestone.startDate || new Date(startDate);
+      milestone.endDate = new Date(endDate);
     }
 
     if (status === 'COMPLETED') {
       if (!milestone.startDate) {
-        milestone.startDate = new Date();
+        return errorResponse(res, 400, 'startDate must be set before completing a milestone');
       }
-      milestone.endDate = new Date();
+
+      if (endDate) {
+        if (milestone.endDate && new Date(endDate) < milestone.endDate) {
+          return errorResponse(res, 400, 'endDate can only be increased');
+        }
+        milestone.endDate = new Date(endDate);
+      }
     }
+
+    if (milestone.startDate && milestone.endDate && milestone.endDate < milestone.startDate) {
+      return errorResponse(res, 400, 'endDate must be on or after startDate');
+    }
+
+    // Update status (pre-save hook will validate other rules)
+    milestone.status = status;
 
     try {
       await milestone.save();

@@ -17,7 +17,7 @@ const milestoneRoutes = require('./routes/milestoneRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const captureMetadata = require('./middleware/captureMetadata');
 
-const app = express();
+const app = express();https://job-handling.onrender.comsw
 
 // ========================
 // MIDDLEWARE
@@ -316,7 +316,24 @@ const swaggerOptions = {
           type: 'object',
           required: ['status'],
           properties: {
-            status: { type: 'string', enum: ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED'], example: 'IN_PROGRESS' }
+            status: {
+              type: 'string',
+              enum: ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED'],
+              example: 'IN_PROGRESS',
+              description: 'When IN_PROGRESS, startDate and endDate are required. When COMPLETED, endDate may be provided to extend.'
+            },
+            startDate: {
+              type: 'string',
+              format: 'date-time',
+              example: '2026-02-24T10:00:00Z',
+              description: 'Required when moving to IN_PROGRESS. Cannot be changed once set.'
+            },
+            endDate: {
+              type: 'string',
+              format: 'date-time',
+              example: '2026-02-26T17:00:00Z',
+              description: 'Required when moving to IN_PROGRESS. Can be increased later.'
+            }
           }
         },
         ReorderMilestonesRequest: {
