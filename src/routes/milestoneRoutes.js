@@ -53,7 +53,7 @@ router.put('/:milestoneId', updateMilestone);
  *   patch:
  *     tags: [Milestones - Admin]
  *     summary: Update milestone status
- *     description: When moving to IN_PROGRESS, you must provide startDate and endDate. startDate cannot be changed later, while endDate can be increased. When moving to COMPLETED, you can optionally extend endDate.
+ *     description: When moving to IN_PROGRESS, you must provide startDate and endDate. startDate cannot be changed later, while endDate can be increased. When moving to COMPLETED, endDate is required and startDate must already exist (or be provided if missing). Milestones in IN_PROGRESS are automatically marked COMPLETED once endDate passes.
  *     security:
  *       - bearerAuth: []
  *     parameters:

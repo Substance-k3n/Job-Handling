@@ -313,28 +313,62 @@ const swaggerOptions = {
           }
         },
         UpdateMilestoneStatusRequest: {
-          type: 'object',
-          required: ['status'],
-          properties: {
-            status: {
-              type: 'string',
-              enum: ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED'],
-              example: 'IN_PROGRESS',
-              description: 'When IN_PROGRESS, startDate and endDate are required. When COMPLETED, endDate may be provided to extend.'
+          oneOf: [
+            {
+              type: 'object',
+              required: ['status'],
+              properties: {
+                status: {
+                  type: 'string',
+                  enum: ['NOT_STARTED']
+                }
+              }
             },
-            startDate: {
-              type: 'string',
-              format: 'date-time',
-              example: '2026-02-24T10:00:00Z',
-              description: 'Required when moving to IN_PROGRESS. Cannot be changed once set.'
+            {
+              type: 'object',
+              required: ['status', 'startDate', 'endDate'],
+              properties: {
+                status: {
+                  type: 'string',
+                  enum: ['IN_PROGRESS']
+                },
+                startDate: {
+                  type: 'string',
+                  format: 'date-time',
+                  example: '2026-02-24T10:00:00Z',
+                  description: 'Required when moving to IN_PROGRESS. Cannot be changed once set.'
+                },
+                endDate: {
+                  type: 'string',
+                  format: 'date-time',
+                  example: '2026-02-26T17:00:00Z',
+                  description: 'Required when moving to IN_PROGRESS. Can be increased later. If this date passes while IN_PROGRESS, the milestone is auto-completed.'
+                }
+              }
             },
-            endDate: {
-              type: 'string',
-              format: 'date-time',
-              example: '2026-02-26T17:00:00Z',
-              description: 'Required when moving to IN_PROGRESS. Can be increased later.'
+            {
+              type: 'object',
+              required: ['status', 'endDate'],
+              properties: {
+                status: {
+                  type: 'string',
+                  enum: ['COMPLETED']
+                },
+                startDate: {
+                  type: 'string',
+                  format: 'date-time',
+                  example: '2026-02-24T10:00:00Z',
+                  description: 'Provide only if this milestone has no startDate yet.'
+                },
+                endDate: {
+                  type: 'string',
+                  format: 'date-time',
+                  example: '2026-02-26T17:00:00Z',
+                  description: 'Required when moving to COMPLETED. Also used by automatic completion once the date passes.'
+                }
+              }
             }
-          }
+          ]
         },
         ReorderMilestonesRequest: {
           type: 'object',

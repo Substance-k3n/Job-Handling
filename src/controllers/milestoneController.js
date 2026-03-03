@@ -2,6 +2,7 @@
 const Project = require('../models/Project');
 const Milestone = require('../models/Milestone');
 const { successResponse, errorResponse } = require('../utils/responseUtils');
+const { closeProjectIfAllMilestonesCompleted } = require('../services/milestoneAutomationService');
 
 const addMilestone = async (req, res, next) => {
   try {
@@ -106,8 +107,8 @@ const updateMilestoneStatus = async (req, res, next) => {
     }
 
     // Manual date logic:
-    // - when moving to IN_PROGRESS, require startDate and endDate
-    // - when moving to COMPLETED, allow endDate to stay or be increased
+    // - when moving to IN_PROGRESS, startDate and endDate are required
+    // - when moving to COMPLETED, endDate is required and startDate must exist (or be provided if missing)
     if (status === 'NOT_STARTED') {
       if (startDate || endDate) {
         return errorResponse(res, 400, 'Dates can only be set when a milestone is in progress or completed');
@@ -132,16 +133,26 @@ const updateMilestoneStatus = async (req, res, next) => {
     }
 
     if (status === 'COMPLETED') {
-      if (!milestone.startDate) {
-        return errorResponse(res, 400, 'startDate must be set before completing a milestone');
+      if (!endDate) {
+        return errorResponse(res, 400, 'endDate is required when moving a milestone to COMPLETED');
       }
 
-      if (endDate) {
-        if (milestone.endDate && new Date(endDate) < milestone.endDate) {
-          return errorResponse(res, 400, 'endDate can only be increased');
+      if (!milestone.startDate) {
+        if (!startDate) {
+          return errorResponse(res, 400, 'startDate is required when moving a milestone to COMPLETED if it was not set before');
         }
-        milestone.endDate = new Date(endDate);
+        milestone.startDate = new Date(startDate);
       }
+
+      if (milestone.startDate && startDate && new Date(startDate).getTime() !== milestone.startDate.getTime()) {
+        return errorResponse(res, 400, 'startDate is already set and cannot be changed');
+      }
+
+      if (milestone.endDate && new Date(endDate) < milestone.endDate) {
+        return errorResponse(res, 400, 'endDate can only be increased');
+      }
+
+      milestone.endDate = new Date(endDate);
     }
 
     if (milestone.startDate && milestone.endDate && milestone.endDate < milestone.startDate) {
@@ -153,6 +164,10 @@ const updateMilestoneStatus = async (req, res, next) => {
 
     try {
       await milestone.save();
+
+      if (status === 'COMPLETED') {
+        await closeProjectIfAllMilestonesCompleted(milestone.projectId);
+      }
     } catch (validationError) {
       return errorResponse(res, 400, validationError.message);
     }
@@ -223,6 +238,7 @@ const reorderMilestones = async (req, res, next) => {
     if (existingMilestones.length !== milestones.length) {
       return errorResponse(res, 400, 'Some milestones do not belong to this project');
     }
+    
 
     // Validate no duplicate orders
     const orders = milestones.map(m => m.order);
@@ -237,7 +253,28 @@ const reorderMilestones = async (req, res, next) => {
         return errorResponse(res, 400, 'Order numbers must be sequential starting from 1');
       }
     }
+const newOrderMap = new Map(milestones.map(m => [m.id, m.order]));
+    const sortedExistingMilestones = [...existingMilestones].sort((a, b) => {
+      return newOrderMap.get(a._id.toString()) - newOrderMap.get(b._id.toString());
+    });
 
+    let foundInProgress = false;
+    let foundNotStarted = false;
+
+    for (const m of sortedExistingMilestones) {
+      if (m.status === 'COMPLETED') {
+        if (foundInProgress || foundNotStarted) {
+          return errorResponse(res, 400, 'Invalid ordering: A COMPLETED milestone cannot be placed after an IN_PROGRESS or NOT_STARTED milestone');
+        }
+      } else if (m.status === 'IN_PROGRESS') {
+        if (foundNotStarted) {
+          return errorResponse(res, 400, 'Invalid ordering: An IN_PROGRESS milestone cannot be placed after a NOT_STARTED milestone');
+        }
+        foundInProgress = true;
+      } else if (m.status === 'NOT_STARTED') {
+        foundNotStarted = true;
+      }
+    }
     // Update all milestones
     await Promise.all(
       milestones.map(({ id, order }) =>

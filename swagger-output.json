@@ -640,7 +640,7 @@
           "Job Fields - Admin"
         ],
         "summary": "STEP 3 - Add a field to job application form",
-        "description": "Add a new field to the job application form. Works like Google Forms.\n\n**Available Field Types:**\n- `short_answer` - Single line text input (e.g., name, email)\n- `paragraph` - Multi-line text area (e.g., cover letter)\n- `multiple_choice` - Radio buttons - single selection (requires options)\n- `checkboxes` - Multiple checkboxes - multi selection (requires options)\n- `dropdown` - Select dropdown menu (requires options)\n- `file` - File upload (e.g., CV, resume)\n- `rating` - Star rating or numeric scale\n- `date` - Date picker\n- `time` - Time picker\n\n**For multiple_choice, checkboxes, and dropdown:**\nYou MUST provide an `options` array with at least one option.\n",
+        "description": "Add a new field to the job application form. Works like Google Forms.\n\n**Available Field Types:**\n- `short_answer` - Single line text input (e.g., name, email)\n- `paragraph` - Multi-line text area (e.g., cover letter)\n- `link` - URL input (e.g., portfolio, LinkedIn profile)\n- `multiple_choice` - Radio buttons - single selection (requires options)\n- `checkboxes` - Multiple checkboxes - multi selection (requires options)\n- `dropdown` - Select dropdown menu (requires options)\n- `file` - File upload (e.g., CV, resume)\n- `rating` - Star rating or numeric scale\n- `date` - Date picker\n- `time` - Time picker\n\n**For multiple_choice, checkboxes, and dropdown:**\nYou MUST provide an `options` array with at least one option.\n",
         "security": [
           {
             "bearerAuth": []
@@ -682,6 +682,15 @@
                     "question": "Tell us why you want to join our company",
                     "required": true,
                     "order": 4
+                  }
+                },
+                "link": {
+                  "summary": "Link Field",
+                  "value": {
+                    "type": "link",
+                    "question": "Link to your portfolio or LinkedIn profile",
+                    "required": false,
+                    "order": 2
                   }
                 },
                 "multipleChoice": {
@@ -2011,6 +2020,28 @@
             "example": "677c3d4e5f6789abcdef012"
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendAcceptanceRequest"
+              },
+              "examples": {
+                "default": {
+                  "summary": "Send acceptance email",
+                  "value": {
+                    "applicant_name": "Jane Doe",
+                    "role": "Frontend Developer",
+                    "custom_message": "Please find the attached offer letter with details about your compensation and benefits. Kindly sign and return it by January 20, 2026.",
+                    "sender_name": "John Smith",
+                    "sender_title": "Talent Acquisition Manager"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Acceptance email sent successfully",
@@ -2037,6 +2068,31 @@
                         "isAccepted": {
                           "type": "boolean",
                           "example": true
+                        },
+                        "acceptanceDetails": {
+                          "type": "object",
+                          "properties": {
+                            "applicant_name": {
+                              "type": "string",
+                              "example": "Jane Doe"
+                            },
+                            "role": {
+                              "type": "string",
+                              "example": "Frontend Developer"
+                            },
+                            "custom_message": {
+                              "type": "string",
+                              "example": "Please find the attached offer letter with details about your compensation and benefits."
+                            },
+                            "sender_name": {
+                              "type": "string",
+                              "example": "John Smith"
+                            },
+                            "sender_title": {
+                              "type": "string",
+                              "example": "Talent Acquisition Manager"
+                            }
+                          }
                         }
                       }
                     }
@@ -2044,6 +2100,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Validation error (missing required acceptance fields)"
           },
           "401": {
             "description": "Unauthorized"
@@ -2084,8 +2143,8 @@
         "tags": [
           "Authentication"
         ],
-        "summary": "Register a new user",
-        "description": "Create a new user account. You can later promote this user to admin manually in MongoDB Atlas.",
+        "summary": "Register a new admin user",
+        "description": "Create a new user account with admin role and access.",
         "requestBody": {
           "required": true,
           "content": {
@@ -2221,13 +2280,481 @@
         }
       }
     },
+    "/admin/milestones/{milestoneId}": {
+      "put": {
+        "tags": [
+          "Milestones - Admin"
+        ],
+        "summary": "Update milestone",
+        "description": "Update milestone title and description only.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "milestoneId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMilestoneRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Milestone updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MilestoneResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Milestone not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Milestones - Admin"
+        ],
+        "summary": "Delete milestone",
+        "description": "Delete a milestone and reorder remaining milestones.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "milestoneId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Milestone deleted successfully"
+          },
+          "404": {
+            "description": "Milestone not found"
+          }
+        }
+      }
+    },
+    "/admin/milestones/{milestoneId}/status": {
+      "patch": {
+        "tags": [
+          "Milestones - Admin"
+        ],
+        "summary": "Update milestone status",
+        "description": "When moving to IN_PROGRESS, you must provide startDate and endDate. startDate cannot be changed later, while endDate can be increased. When moving to COMPLETED, endDate is required and startDate must already exist (or be provided if missing). Milestones in IN_PROGRESS are automatically marked COMPLETED once endDate passes.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "milestoneId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMilestoneStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Milestone status updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MilestoneResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "404": {
+            "description": "Milestone not found"
+          }
+        }
+      }
+    },
+    "/admin/projects": {
+      "post": {
+        "tags": [
+          "Projects - Admin"
+        ],
+        "summary": "Create a new project",
+        "description": "Create a project with an optional image URL and status.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Project created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Projects - Admin"
+        ],
+        "summary": "Get all projects",
+        "description": "Retrieve projects with optional status and search filters.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "BLOCKED",
+                "CLOSED"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Projects retrieved successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/admin/projects/{projectId}": {
+      "get": {
+        "tags": [
+          "Projects - Admin"
+        ],
+        "summary": "Get project by ID",
+        "description": "Retrieve a project and its ordered milestones.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project retrieved successfully"
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Projects - Admin"
+        ],
+        "summary": "Update a project",
+        "description": "Update project fields including status.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project updated successfully"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Projects - Admin"
+        ],
+        "summary": "Delete a project",
+        "description": "Delete a project and all its milestones.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project deleted successfully"
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      }
+    },
+    "/admin/projects/{projectId}/progress": {
+      "get": {
+        "tags": [
+          "Projects - Admin"
+        ],
+        "summary": "Get project progress",
+        "description": "Calculate progress based on completed milestones.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Progress retrieved successfully"
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      }
+    },
+    "/admin/projects/{projectId}/milestones": {
+      "post": {
+        "tags": [
+          "Milestones - Admin"
+        ],
+        "summary": "Add milestone to project",
+        "description": "Create a milestone as NOT_STARTED. Dates are set when it moves to IN_PROGRESS or COMPLETED.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMilestoneRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Milestone added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MilestoneResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      }
+    },
+    "/admin/projects/{projectId}/milestones/reorder": {
+      "patch": {
+        "tags": [
+          "Milestones - Admin"
+        ],
+        "summary": "Reorder milestones",
+        "description": "Update milestone order. Orders must be sequential starting from 1.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderMilestonesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Milestones reordered successfully"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      }
+    },
     "/jobs": {
       "get": {
         "tags": [
           "Jobs - Public"
         ],
-        "summary": "STEP 1 - Fetch all available jobs (PUBLIC - No Authentication)",
-        "description": "Fetch all publicly visible jobs for the talent/user side.\n\nReturns only job metadata summary (title, short description, dates).\nTo get full details and form fields, call GET /jobs/{jobId}\n\nVisibility: Only jobs that are ACTIVE and not past their deadline are returned.\n\n**NO AUTHENTICATION REQUIRED** - Anyone can view jobs\n",
+        "summary": "STEP 1 - Fetch all available jobs with full metadata (PUBLIC - No Authentication)",
+        "description": "Fetch all publicly visible jobs for the talent/user side.\n\nReturns full job metadata for each job (title, full description, location, type,\nwork mode, key responsibilities, what we offer, requirements, deadline).\nApplication form fields are NOT included here; to get fields for a specific job,\nuse GET /jobs/{jobId} which returns both metadata and fields.\n\nVisibility: Only jobs that are ACTIVE and not past their deadline are returned.\n\n**NO AUTHENTICATION REQUIRED** - Anyone can view jobs\n",
         "responses": {
           "200": {
             "description": "Jobs retrieved successfully",
@@ -2259,10 +2786,10 @@
                             "description": "Job title",
                             "example": "Software Engineer"
                           },
-                          "shortDescription": {
+                          "description": {
                             "type": "string",
-                            "description": "First 100 characters of job description",
-                            "example": "We are looking for a skilled Software Engineer to join our growing development team..."
+                            "description": "Full job description",
+                            "example": "We are looking for a skilled Software Engineer to join our growing development team. The ideal candidate will have strong problem-solving skills and experience in modern web technologies."
                           },
                           "location": {
                             "type": "string",
@@ -2275,6 +2802,37 @@
                           "work_mode": {
                             "type": "string",
                             "example": "hybrid"
+                          },
+                          "key_responsibilities": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "example": [
+                              "Develop and maintain web applications",
+                              "Collaborate with cross-functional teams",
+                              "Write clean, scalable code"
+                            ]
+                          },
+                          "what_we_offer": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "example": [
+                              "Competitive salary",
+                              "Health and dental insurance"
+                            ]
+                          },
+                          "requirements": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "example": [
+                              "Bachelor's degree in Computer Science or related field",
+                              "3+ years of experience in software development"
+                            ]
                           },
                           "deadline": {
                             "type": "string",
@@ -2289,7 +2847,7 @@
                 },
                 "examples": {
                   "multipleJobs": {
-                    "summary": "Multiple Active Jobs (summary)",
+                    "summary": "Multiple Active Jobs (full metadata)",
                     "value": {
                       "success": true,
                       "message": "Jobs retrieved successfully",
@@ -2297,19 +2855,40 @@
                         {
                           "id": "677a1b2c3d4e5f6789abcdef",
                           "title": "Software Engineer",
-                          "shortDescription": "We are looking for a skilled Software Engineer to join our growing development team...",
+                          "description": "We are looking for a skilled Software Engineer to join our growing development team.",
                           "location": "Addis Ababa, Ethiopia",
                           "type": "full-time",
                           "work_mode": "hybrid",
+                          "key_responsibilities": [
+                            "Develop and maintain web applications",
+                            "Collaborate with cross-functional teams"
+                          ],
+                          "what_we_offer": [
+                            "Competitive salary",
+                            "Health and dental insurance"
+                          ],
+                          "requirements": [
+                            "Bachelor's degree in Computer Science or related field",
+                            "3+ years of experience in software development"
+                          ],
                           "deadline": "2026-02-15T17:00:00Z"
                         },
                         {
                           "id": "677a1b2c3d4e5f6789abcdf0",
                           "title": "Backend Developer",
-                          "shortDescription": "Looking for Node.js developer with experience in microservices and PostgreSQL...",
+                          "description": "Looking for Node.js developer with experience in microservices and PostgreSQL.",
                           "location": "Addis Ababa, Ethiopia",
                           "type": "full-time",
                           "work_mode": "onsite",
+                          "key_responsibilities": [
+                            "Design and implement REST APIs"
+                          ],
+                          "what_we_offer": [
+                            "Health and dental insurance"
+                          ],
+                          "requirements": [
+                            "Experience with Node.js and PostgreSQL"
+                          ],
                           "deadline": "2026-03-01T17:00:00Z"
                         }
                       ]
@@ -2452,6 +3031,7 @@
                                 "enum": [
                                   "short_answer",
                                   "paragraph",
+                                  "link",
                                   "multiple_choice",
                                   "checkboxes",
                                   "dropdown",
@@ -2527,7 +3107,25 @@
                           "Strong problem-solving skills",
                           "Excellent communication and teamwork abilities"
                         ],
-                        "deadline": "2026-02-15T17:00:00Z"
+                        "deadline": "2026-02-15T17:00:00Z",
+                        "fields": [
+                          {
+                            "id": "677b2c3d4e5f6789abcdef01",
+                            "type": "short_answer",
+                            "question": "What is your full name?",
+                            "options": [],
+                            "required": true,
+                            "order": 1
+                          },
+                          {
+                            "id": "677b2c3d4e5f6789abcdef02",
+                            "type": "file",
+                            "question": "Upload your CV/Resume",
+                            "options": [],
+                            "required": true,
+                            "order": 2
+                          }
+                        ]
                       }
                     }
                   }
@@ -2578,89 +3176,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/jobs/{jobId}/field": {
-      "get": {
-        "tags": [
-          "Jobs - Public"
-        ],
-        "summary": "STEP 2b - Fetch only application form fields (PUBLIC - No Authentication)",
-        "description": "Fetch only the application form schema for a job. Use this after the user clicks \"Apply\" to render the fields.\nFields are sorted by the `order` property.\n",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "jobId",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Job ID (MongoDB ObjectId)"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Form schema retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Form schema retrieved successfully"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "fields": {
-                          "type": "array",
-                          "description": "Form fields sorted by `order`",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string"
-                              },
-                              "type": {
-                                "type": "string"
-                              },
-                              "question": {
-                                "type": "string"
-                              },
-                              "options": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "required": {
-                                "type": "boolean"
-                              },
-                              "order": {
-                                "type": "number"
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Job is no longer available"
-          },
-          "404": {
-            "description": "Job not found"
           }
         }
       }
