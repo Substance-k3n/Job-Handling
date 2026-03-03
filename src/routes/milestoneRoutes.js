@@ -53,7 +53,7 @@ router.put('/:milestoneId', updateMilestone);
  *   patch:
  *     tags: [Milestones - Admin]
  *     summary: Update milestone status
- *     description: When moving to IN_PROGRESS, you must provide startDate and endDate. startDate cannot be changed later, while endDate can be increased. When moving to COMPLETED, endDate is required and startDate must already exist (or be provided if missing). Milestones in IN_PROGRESS are automatically marked COMPLETED once endDate passes.
+ *     description: Frontend walkthrough - (1) start milestone by setting status=IN_PROGRESS with startDate and endDate, (2) extend schedule by patching IN_PROGRESS with a later endDate, (3) complete manually with status=COMPLETED and endDate. Dates are always request payload values (never auto-generated). If endDate passes while still IN_PROGRESS, status may auto-update to COMPLETED.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -68,6 +68,24 @@ router.put('/:milestoneId', updateMilestone);
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/UpdateMilestoneStatusRequest'
+ *           examples:
+ *             startMilestone:
+ *               summary: Start milestone manually
+ *               value:
+ *                 status: IN_PROGRESS
+ *                 startDate: '2026-03-03T08:00:00.000Z'
+ *                 endDate: '2026-03-06T17:00:00.000Z'
+ *             extendMilestoneEndDate:
+ *               summary: Extend endDate while still IN_PROGRESS
+ *               value:
+ *                 status: IN_PROGRESS
+ *                 startDate: '2026-03-03T08:00:00.000Z'
+ *                 endDate: '2026-03-08T17:00:00.000Z'
+ *             completeMilestone:
+ *               summary: Complete milestone manually
+ *               value:
+ *                 status: COMPLETED
+ *                 endDate: '2026-03-08T17:00:00.000Z'
  *     responses:
  *       200:
  *         description: Milestone status updated successfully
@@ -75,6 +93,33 @@ router.put('/:milestoneId', updateMilestone);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/MilestoneResponse'
+ *             examples:
+ *               inProgressResult:
+ *                 summary: Milestone started
+ *                 value:
+ *                   success: true
+ *                   message: Milestone status updated successfully
+ *                   data:
+ *                     id: 67c4c4a0f5a3a2d9f3531001
+ *                     title: Design phase
+ *                     order: 1
+ *                     status: IN_PROGRESS
+ *                     startDate: '2026-03-03T08:00:00.000Z'
+ *                     endDate: '2026-03-06T17:00:00.000Z'
+ *                     updatedAt: '2026-03-03T10:30:00.000Z'
+ *               completedResult:
+ *                 summary: Milestone completed
+ *                 value:
+ *                   success: true
+ *                   message: Milestone status updated successfully
+ *                   data:
+ *                     id: 67c4c4a0f5a3a2d9f3531001
+ *                     title: Design phase
+ *                     order: 1
+ *                     status: COMPLETED
+ *                     startDate: '2026-03-03T08:00:00.000Z'
+ *                     endDate: '2026-03-08T17:00:00.000Z'
+ *                     updatedAt: '2026-03-08T17:05:00.000Z'
  *       400:
  *         description: Validation error
  *       404:

@@ -2,8 +2,55 @@ const express = require('express');
 const router = express.Router();
 const publicJobController = require('../controllers/publicJobController');
 const applicationController = require('../controllers/applicationController');
+const { getProjectById, getProjectProgress } = require('../controllers/projectController');
 const { successResponse, errorResponse } = require('../utils/responseUtils');
 const { upload, uploadToMinio } = require('../config/multer');
+
+/**
+ * @swagger
+ * /projects/{projectId}:
+ *   get:
+ *     tags: [Projects - Public]
+ *     summary: Get project by ID (PUBLIC)
+ *     description: Retrieve a project and its ordered milestones without authentication. This is intended for frontend milestone walkthrough display.
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Project retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ProjectResponse'
+ *       404:
+ *         description: Project not found
+ */
+router.get('/projects/:projectId', getProjectById);
+
+/**
+ * @swagger
+ * /projects/{projectId}/progress:
+ *   get:
+ *     tags: [Projects - Public]
+ *     summary: Get project progress (PUBLIC)
+ *     description: Retrieve project progress without authentication.
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Progress retrieved successfully
+ *       404:
+ *         description: Project not found
+ */
+router.get('/projects/:projectId/progress', getProjectProgress);
 
 /**
  * @swagger

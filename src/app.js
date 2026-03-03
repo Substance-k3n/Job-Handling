@@ -298,7 +298,7 @@ const swaggerOptions = {
                 name: { type: 'string' },
                 description: { type: 'string' },
                 imageUrl: { type: 'string', nullable: true },
-                status: { type: 'string' },
+                status: { type: 'string', description: 'ACTIVE, BLOCKED, or CLOSED. CLOSED can also be set automatically when all milestones are completed.' },
                 createdAt: { type: 'string', format: 'date-time' }
               }
             }
@@ -330,19 +330,20 @@ const swaggerOptions = {
               properties: {
                 status: {
                   type: 'string',
-                  enum: ['IN_PROGRESS']
+                  enum: ['IN_PROGRESS'],
+                  description: 'Move milestone to IN_PROGRESS using explicit dates from payload.'
                 },
                 startDate: {
                   type: 'string',
                   format: 'date-time',
                   example: '2026-02-24T10:00:00Z',
-                  description: 'Required when moving to IN_PROGRESS. Cannot be changed once set.'
+                  description: 'Required when moving to IN_PROGRESS. This value is never auto-created. Cannot be changed once set.'
                 },
                 endDate: {
                   type: 'string',
                   format: 'date-time',
                   example: '2026-02-26T17:00:00Z',
-                  description: 'Required when moving to IN_PROGRESS. Can be increased later. If this date passes while IN_PROGRESS, the milestone is auto-completed.'
+                  description: 'Required when moving to IN_PROGRESS. This value is never auto-created. Can be increased later.'
                 }
               }
             },
@@ -352,7 +353,8 @@ const swaggerOptions = {
               properties: {
                 status: {
                   type: 'string',
-                  enum: ['COMPLETED']
+                  enum: ['COMPLETED'],
+                  description: 'Manually mark milestone as COMPLETED with endDate in payload.'
                 },
                 startDate: {
                   type: 'string',
@@ -364,7 +366,7 @@ const swaggerOptions = {
                   type: 'string',
                   format: 'date-time',
                   example: '2026-02-26T17:00:00Z',
-                  description: 'Required when moving to COMPLETED. Also used by automatic completion once the date passes.'
+                  description: 'Required when moving to COMPLETED. If endDate passes while milestone is still IN_PROGRESS, status can be auto-updated to COMPLETED.'
                 }
               }
             }
@@ -391,7 +393,7 @@ const swaggerOptions = {
           type: 'object',
           properties: {
             success: { type: 'boolean', example: true },
-            message: { type: 'string', example: 'Milestone updated successfully' },
+            message: { type: 'string', example: 'Milestone response' },
             data: {
               type: 'object',
               properties: {
@@ -401,8 +403,8 @@ const swaggerOptions = {
                 description: { type: 'string', nullable: true },
                 order: { type: 'number' },
                 status: { type: 'string' },
-                startDate: { type: 'string', format: 'date-time', nullable: true },
-                endDate: { type: 'string', format: 'date-time', nullable: true },
+                startDate: { type: 'string', format: 'date-time', nullable: true, example: null },
+                endDate: { type: 'string', format: 'date-time', nullable: true, example: null },
                 createdAt: { type: 'string', format: 'date-time' },
                 updatedAt: { type: 'string', format: 'date-time' }
               }
@@ -612,6 +614,10 @@ const swaggerOptions = {
       {
         name: 'Applications - Public',
         description: 'Job application endpoints (No auth required)'
+      },
+      {
+        name: 'Projects - Public',
+        description: 'Public project and milestone progress endpoints (No auth required)'
       },
       {
         name: 'Jobs - Admin',

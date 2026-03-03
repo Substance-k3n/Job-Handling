@@ -23,9 +23,7 @@ const {
   reorderMilestones
 } = require('../controllers/milestoneController');
 
-// Apply authentication and authorization
-router.use(protect);
-router.use(authorize('admin', 'super_admin'));
+const requireAdmin = [protect, authorize('admin', 'super_admin')];
 
 /**
  * @swagger
@@ -56,17 +54,15 @@ router.use(authorize('admin', 'super_admin'));
  *       403:
  *         description: Forbidden
  */
-router.post('/', projectValidator, validateRequest, createProject);
+router.post('/', ...requireAdmin, projectValidator, validateRequest, createProject);
 
 /**
  * @swagger
  * /admin/projects:
  *   get:
- *     tags: [Projects - Admin]
- *     summary: Get all projects
- *     description: Retrieve projects with optional status and search filters.
- *     security:
- *       - bearerAuth: []
+ *     tags: [Projects - Public]
+ *     summary: Get all projects (PUBLIC)
+ *     description: Retrieve projects with optional status and search filters without authentication.
  *     parameters:
  *       - in: query
  *         name: status
@@ -88,10 +84,6 @@ router.post('/', projectValidator, validateRequest, createProject);
  *     responses:
  *       200:
  *         description: Projects retrieved successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
  */
 router.get('/', getAllProjects);
 
@@ -99,11 +91,9 @@ router.get('/', getAllProjects);
  * @swagger
  * /admin/projects/{projectId}:
  *   get:
- *     tags: [Projects - Admin]
- *     summary: Get project by ID
- *     description: Retrieve a project and its ordered milestones.
- *     security:
- *       - bearerAuth: []
+ *     tags: [Projects - Public]
+ *     summary: Get project by ID (PUBLIC)
+ *     description: Retrieve a project and its ordered milestones for frontend workflow. Milestones come sorted by order; frontend should use status + dates to decide whether to show Start (patch to IN_PROGRESS), Complete (patch to COMPLETED), or waiting state for the next milestone.
  *     parameters:
  *       - in: path
  *         name: projectId
@@ -147,7 +137,7 @@ router.get('/:projectId', getProjectById);
  *       404:
  *         description: Project not found
  */
-router.put('/:projectId', updateProject);
+router.put('/:projectId', ...requireAdmin, updateProject);
 
 /**
  * @swagger
@@ -170,17 +160,15 @@ router.put('/:projectId', updateProject);
  *       404:
  *         description: Project not found
  */
-router.delete('/:projectId', deleteProject);
+router.delete('/:projectId', ...requireAdmin, deleteProject);
 
 /**
  * @swagger
  * /admin/projects/{projectId}/progress:
  *   get:
- *     tags: [Projects - Admin]
- *     summary: Get project progress
- *     description: Calculate progress based on completed milestones.
- *     security:
- *       - bearerAuth: []
+ *     tags: [Projects - Public]
+ *     summary: Get project progress (PUBLIC)
+ *     description: Calculate progress based on completed milestones without authentication.
  *     parameters:
  *       - in: path
  *         name: projectId
@@ -201,7 +189,7 @@ router.get('/:projectId/progress', getProjectProgress);
  *   post:
  *     tags: [Milestones - Admin]
  *     summary: Add milestone to project
- *     description: Create a milestone as NOT_STARTED. Dates are set when it moves to IN_PROGRESS or COMPLETED.
+ *     description: Create a milestone as NOT_STARTED with order assigned automatically. startDate and endDate are NOT created here; they must be sent later through the milestone status PATCH endpoint.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -223,12 +211,28 @@ router.get('/:projectId/progress', getProjectProgress);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/MilestoneResponse'
+ *             examples:
+ *               createdMilestone:
+ *                 summary: New milestone created (no dates yet)
+ *                 value:
+ *                   success: true
+ *                   message: Milestone added successfully
+ *                   data:
+ *                     id: 67c4c4a0f5a3a2d9f3531001
+ *                     projectId: 67c4c45df5a3a2d9f3530fff
+ *                     title: Design phase
+ *                     description: Wireframes and mockups
+ *                     order: 1
+ *                     status: NOT_STARTED
+ *                     startDate: null
+ *                     endDate: null
+ *                     createdAt: '2026-03-03T10:15:00.000Z'
  *       400:
  *         description: Validation error
  *       404:
  *         description: Project not found
  */
-router.post('/:projectId/milestones', milestoneValidator, validateRequest, addMilestone);
+router.post('/:projectId/milestones', ...requireAdmin, milestoneValidator, validateRequest, addMilestone);
 
 /**
  * @swagger
@@ -236,7 +240,7 @@ router.post('/:projectId/milestones', milestoneValidator, validateRequest, addMi
  *   patch:
  *     tags: [Milestones - Admin]
  *     summary: Reorder milestones
- *     description: Update milestone order. Orders must be sequential starting from 1.
+ *     description: Update milestone order manually. Orders must be sequential starting from 1.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -259,6 +263,6 @@ router.post('/:projectId/milestones', milestoneValidator, validateRequest, addMi
  *       404:
  *         description: Project not found
  */
-router.patch('/:projectId/milestones/reorder', reorderMilestones);
+router.patch('/:projectId/milestones/reorder', ...requireAdmin, reorderMilestones);
 
 module.exports = router;
