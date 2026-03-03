@@ -2470,7 +2470,7 @@
         }
       }
     },
-    "/admin/projects": {
+    "/projects": {
       "post": {
         "tags": [
           "Projects - Admin"
@@ -2562,13 +2562,13 @@
         }
       }
     },
-    "/admin/projects/{projectId}": {
+    "/projects/{projectId}": {
       "get": {
         "tags": [
           "Projects - Public"
         ],
         "summary": "Get project by ID (PUBLIC)",
-        "description": "Retrieve a project and its ordered milestones for frontend workflow. Milestones come sorted by order; frontend should use status + dates to decide whether to show Start (patch to IN_PROGRESS), Complete (patch to COMPLETED), or waiting state for the next milestone.",
+        "description": "Retrieve a project and its ordered milestones for frontend workflow.",
         "parameters": [
           {
             "in": "path",
@@ -2662,7 +2662,7 @@
         }
       }
     },
-    "/admin/projects/{projectId}/progress": {
+    "/projects/{projectId}/progress": {
       "get": {
         "tags": [
           "Projects - Public"
@@ -2689,7 +2689,7 @@
         }
       }
     },
-    "/admin/projects/{projectId}/milestones": {
+    "/projects/{projectId}/milestones": {
       "post": {
         "tags": [
           "Milestones - Admin"
@@ -2761,7 +2761,7 @@
         }
       }
     },
-    "/admin/projects/{projectId}/milestones/reorder": {
+    "/projects/{projectId}/milestones/reorder": {
       "patch": {
         "tags": [
           "Milestones - Admin"
@@ -2799,67 +2799,6 @@
           },
           "400": {
             "description": "Validation error"
-          },
-          "404": {
-            "description": "Project not found"
-          }
-        }
-      }
-    },
-    "/projects/{projectId}": {
-      "get": {
-        "tags": [
-          "Projects - Public"
-        ],
-        "summary": "Get project by ID (PUBLIC)",
-        "description": "Retrieve a project and its ordered milestones without authentication. This is intended for frontend milestone walkthrough display.",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "projectId",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Project retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProjectResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Project not found"
-          }
-        }
-      }
-    },
-    "/projects/{projectId}/progress": {
-      "get": {
-        "tags": [
-          "Projects - Public"
-        ],
-        "summary": "Get project progress (PUBLIC)",
-        "description": "Retrieve project progress without authentication.",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "projectId",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Progress retrieved successfully"
           },
           "404": {
             "description": "Project not found"

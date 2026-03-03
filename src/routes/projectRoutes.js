@@ -12,14 +12,11 @@ const {
   getProjectById,
   updateProject,
   deleteProject,
-  getProjectProgress
+  getProjectProgress,
 } = require('../controllers/projectController');
 
 const {
   addMilestone,
-  updateMilestone,
-  updateMilestoneStatus,
-  deleteMilestone,
   reorderMilestones
 } = require('../controllers/milestoneController');
 
@@ -27,7 +24,7 @@ const requireAdmin = [protect, authorize('admin', 'super_admin')];
 
 /**
  * @swagger
- * /admin/projects:
+ * /projects:
  *   post:
  *     tags: [Projects - Admin]
  *     summary: Create a new project
@@ -58,7 +55,7 @@ router.post('/', ...requireAdmin, projectValidator, validateRequest, createProje
 
 /**
  * @swagger
- * /admin/projects:
+ * /projects:
  *   get:
  *     tags: [Projects - Public]
  *     summary: Get all projects (PUBLIC)
@@ -89,11 +86,11 @@ router.get('/', getAllProjects);
 
 /**
  * @swagger
- * /admin/projects/{projectId}:
+ * /projects/{projectId}:
  *   get:
  *     tags: [Projects - Public]
  *     summary: Get project by ID (PUBLIC)
- *     description: Retrieve a project and its ordered milestones for frontend workflow. Milestones come sorted by order; frontend should use status + dates to decide whether to show Start (patch to IN_PROGRESS), Complete (patch to COMPLETED), or waiting state for the next milestone.
+ *     description: Retrieve a project and its ordered milestones for frontend workflow.
  *     parameters:
  *       - in: path
  *         name: projectId
@@ -110,7 +107,7 @@ router.get('/:projectId', getProjectById);
 
 /**
  * @swagger
- * /admin/projects/{projectId}:
+ * /projects/{projectId}:
  *   put:
  *     tags: [Projects - Admin]
  *     summary: Update a project
@@ -141,7 +138,7 @@ router.put('/:projectId', ...requireAdmin, updateProject);
 
 /**
  * @swagger
- * /admin/projects/{projectId}:
+ * /projects/{projectId}:
  *   delete:
  *     tags: [Projects - Admin]
  *     summary: Delete a project
@@ -164,7 +161,7 @@ router.delete('/:projectId', ...requireAdmin, deleteProject);
 
 /**
  * @swagger
- * /admin/projects/{projectId}/progress:
+ * /projects/{projectId}/progress:
  *   get:
  *     tags: [Projects - Public]
  *     summary: Get project progress (PUBLIC)
@@ -185,7 +182,7 @@ router.get('/:projectId/progress', getProjectProgress);
 
 /**
  * @swagger
- * /admin/projects/{projectId}/milestones:
+ * /projects/{projectId}/milestones:
  *   post:
  *     tags: [Milestones - Admin]
  *     summary: Add milestone to project
@@ -236,7 +233,7 @@ router.post('/:projectId/milestones', ...requireAdmin, milestoneValidator, valid
 
 /**
  * @swagger
- * /admin/projects/{projectId}/milestones/reorder:
+ * /projects/{projectId}/milestones/reorder:
  *   patch:
  *     tags: [Milestones - Admin]
  *     summary: Reorder milestones

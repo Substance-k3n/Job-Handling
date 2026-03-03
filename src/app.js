@@ -720,8 +720,8 @@ app.use('/api/auth', authRoutes);
 // ADMIN ROUTES (Requires Authentication + Admin Role)
 app.use('/api/admin', adminRoutes);
 
-// PROJECT & MILESTONE ROUTES (Admin-only)
-app.use('/api/admin/projects', projectRoutes);
+// PROJECT ROUTES (Public GET, admin write)
+app.use('/api/projects', projectRoutes);
 app.use('/api/admin/milestones', milestoneRoutes);
 
 // PHASE 2 ROUTES
