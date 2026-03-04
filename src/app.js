@@ -17,7 +17,7 @@ const milestoneRoutes = require('./routes/milestoneRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const captureMetadata = require('./middleware/captureMetadata');
 
-const app = express();https://job-handling.onrender.comsw
+const app = express();
 
 // ========================
 // MIDDLEWARE
@@ -26,6 +26,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(captureMetadata); // Apply globally
+
+// Root Route - Health Check
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Talent Pool API is running', 
+    documentation: '/api-docs' 
+  });
+});
 
 // Static files for uploaded CVs
 app.use('/uploads', express.static('uploads'));
