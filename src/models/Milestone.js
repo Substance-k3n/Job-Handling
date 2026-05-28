@@ -25,7 +25,10 @@ const milestoneSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED'],
+    enum: [
+      'NOT_STARTED', 'IN_PROGRESS', 'COMPLETED',
+      'pending', 'in_progress', 'completed', 'overdue', 'on_hold'
+    ],
     default: 'NOT_STARTED',
     index: true
   },
@@ -36,6 +39,22 @@ const milestoneSchema = new mongoose.Schema({
   endDate: {
     type: Date,
     default: null
+  },
+  // pitron-showcase fields
+  dueDate: {
+    type: Date,
+    default: null
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high'],
+    default: 'medium'
+  },
+  progress: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
   }
 }, {
   timestamps: true
@@ -52,6 +71,12 @@ milestoneSchema.index({ projectId: 1, order: 1 }, { unique: true });
 milestoneSchema.pre('save', async function(next) {
   // Only validate if status is being modified
   if (!this.isModified('status')) {
+    return next();
+  }
+
+  // Skip strict legacy validation for pitron-style status values
+  const legacyStatuses = ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED'];
+  if (!legacyStatuses.includes(this.status)) {
     return next();
   }
 

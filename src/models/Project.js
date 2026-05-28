@@ -4,9 +4,14 @@ const mongoose = require('mongoose');
 const projectSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Project name is required'],
     trim: true,
     maxlength: [200, 'Name cannot exceed 200 characters']
+  },
+  // pitron-showcase field (frontend uses "title")
+  title: {
+    type: String,
+    trim: true,
+    maxlength: [200, 'Title cannot exceed 200 characters']
   },
   description: {
     type: String,
@@ -18,16 +23,53 @@ const projectSchema = new mongoose.Schema({
     trim: true,
     default: null
   },
+  // pitron-showcase fields
+  banner: {
+    type: String,
+    trim: true,
+    default: null
+  },
+  media: [{
+    type: { type: String, enum: ['image', 'video'], default: 'image' },
+    src: { type: String, trim: true },
+    alt: { type: String, trim: true },
+    label: { type: String, trim: true },
+    poster: { type: String, trim: true }
+  }],
+  startDate: {
+    type: Date,
+    default: null
+  },
+  endDate: {
+    type: Date,
+    default: null
+  },
+  budget: {
+    type: Number,
+    default: null
+  },
+  teamIds: [{ type: String }],
+  memberIds: [{ type: String }],
+  // Manual progress override (0-100); computed from milestones if not set
+  progress: {
+    type: Number,
+    default: null,
+    min: 0,
+    max: 100
+  },
   status: {
     type: String,
-    enum: ['ACTIVE', 'BLOCKED', 'CLOSED'],
+    enum: [
+      'ACTIVE', 'BLOCKED', 'CLOSED',
+      'active', 'completed', 'on-hold', 'planning', 'on_hold', 'cancelled'
+    ],
     default: 'ACTIVE',
     index: true
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'Created by user is required']
+    default: null
   }
 }, {
   timestamps: true
@@ -38,15 +80,15 @@ const projectSchema = new mongoose.Schema({
  */
 projectSchema.methods.calculateProgress = async function() {
   const Milestone = mongoose.model('Milestone');
-  
+
   const totalMilestones = await Milestone.countDocuments({ projectId: this._id });
-  if (totalMilestones === 0) return 0;
-  
-  const completedMilestones = await Milestone.countDocuments({ 
-    projectId: this._id, 
-    status: 'COMPLETED' 
+  if (totalMilestones === 0) return this.progress ?? 0;
+
+  const completedMilestones = await Milestone.countDocuments({
+    projectId: this._id,
+    status: { $in: ['COMPLETED', 'completed'] }
   });
-  
+
   return Math.round((completedMilestones / totalMilestones) * 100);
 };
 

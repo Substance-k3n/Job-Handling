@@ -12,6 +12,10 @@ const pipelineRoutes = require('./routes/pipelineRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const milestoneRoutes = require('./routes/milestoneRoutes');
+// Pitron-showcase routes
+const pitronProjectRoutes = require('./routes/pitronProjectRoutes');
+const displayRoutes = require('./routes/displayRoutes');
+const statsRoutes = require('./routes/statsRoutes');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -705,16 +709,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.get('/', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Talent Pool System API',
-    documentation: '/api-docs',
-    health: '/health',
-    version: '1.0.0'
-  });
-});
-
 // ========================
 // ROUTES (NO DUPLICATES!)
 // ========================
@@ -731,6 +725,11 @@ app.use('/api/admin', adminRoutes);
 // PROJECT ROUTES (Public GET, admin write)
 app.use('/api/projects', projectRoutes);
 app.use('/api/admin/milestones', milestoneRoutes);
+
+// PITRON-SHOWCASE ROUTES
+app.use('/api/admin/projects', pitronProjectRoutes);
+app.use('/api/display', displayRoutes);
+app.use('/api/stats', statsRoutes);
 
 // PHASE 2 ROUTES
 app.use('/api/pipeline', pipelineRoutes);
@@ -751,7 +750,10 @@ app.use('*', (req, res) => {
       applyJob: 'POST /api/jobs/:jobId/apply',
       adminLogin: 'POST /api/auth/login',
       adminJobs: 'GET /api/admin/jobs (requires auth)',
-      createJob: 'POST /api/admin/jobs (requires auth)'
+      createJob: 'POST /api/admin/jobs (requires auth)',
+      adminProjects: 'GET /api/admin/projects (requires auth)',
+      displayProjects: 'GET /api/display/projects',
+      dashboardStats: 'GET /api/stats/dashboard (requires auth)'
     }
   });
 });
